@@ -1,0 +1,27 @@
+package com.planmate.planmate_backend.auth;
+
+import com.planmate.planmate_backend.auth.dto.LoginReqDto;
+import com.planmate.planmate_backend.auth.dto.JwtTokenResDto;
+import com.planmate.planmate_backend.auth.service.OAuthLoginService;
+import com.planmate.planmate_backend.auth.service.RefreshTokenService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final OAuthLoginService oAuthLoginService;
+    private final RefreshTokenService refreshTokenService;
+
+    @PostMapping("/kakao")
+    public JwtTokenResDto kakaoLogin(@RequestBody LoginReqDto dto) {
+        return oAuthLoginService.loginWithKakao(dto.getToken());
+    }
+
+    @PostMapping("/refresh")
+    public JwtTokenResDto refreshToken(@RequestHeader("Authorization") String refreshToken) {
+        return refreshTokenService.refreshToken(refreshToken);
+    }
+}

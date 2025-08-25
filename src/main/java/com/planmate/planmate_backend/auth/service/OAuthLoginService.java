@@ -3,10 +3,10 @@ package com.planmate.planmate_backend.auth.service;
 import com.planmate.planmate_backend.auth.jwt.JwtUtil;
 import com.planmate.planmate_backend.common.exception.BusinessException;
 import com.planmate.planmate_backend.common.util.TokenHasher;
-import com.planmate.planmate_backend.auth.repository.UserRepository;
-import com.planmate.planmate_backend.auth.dto.KakaoProfileDto;
-import com.planmate.planmate_backend.auth.dto.JwtTokenResDto;
-import com.planmate.planmate_backend.auth.entity.User;
+import com.planmate.planmate_backend.user.repository.UserRepository;
+import com.planmate.planmate_backend.user.dto.ProfileDto;
+import com.planmate.planmate_backend.auth.dto.JwtTokenDto;
+import com.planmate.planmate_backend.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,23 +22,22 @@ public class OAuthLoginService {
     private final KakaoOAuthService kakaoOAuthService;
 
     @Transactional
-    public JwtTokenResDto loginWithKakao(String code) {
-        KakaoProfileDto kakaoProfile = kakaoOAuthService.getUserInfo(code);
+    public JwtTokenDto loginWithKakao(String code) {
+        ProfileDto profile = kakaoOAuthService.getUserInfo(code);
 
-        User user = userRepository.findByKakaoId(kakaoProfile.getId())
-                .orElseGet(() -> registerUser(kakaoProfile));
+        User user = userRepository.findByKakaoId(profile.getId()).orElseGet(() -> registerUser(profile));
 
-        JwtTokenResDto tokens = issueTokens(user);
+        JwtTokenDto tokens = issueTokens(user);
 
         updateRefreshToken(user, tokens.getRefreshToken());
 
         return tokens;
     }
 
-    public JwtTokenResDto issueTokens(User user) {
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getNickname());
+    public JwtTokenDto issueTokens(User user) {
+        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
-        return new JwtTokenResDto(accessToken, refreshToken);
+        return new JwtTokenDto(accessToken, refreshToken);
     }
 
     public void updateRefreshToken(User user, String refreshToken) {
@@ -51,11 +50,11 @@ public class OAuthLoginService {
         }
     }
 
-    private User registerUser(KakaoProfileDto kakaoUser) {
+    private User registerUser(ProfileDto user) {
         User newUser = User.builder()
-                .kakaoId(kakaoUser.getId())
-                .nickname(kakaoUser.getNickname())
-                .profileImage(kakaoUser.getProfileImage())
+                .kakaoId(user.getId())
+                .nickname(user.getNickname())
+                .profileImage(user.getProfileImage())
                 .build();
         return userRepository.save(newUser);
     }

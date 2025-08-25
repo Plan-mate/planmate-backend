@@ -7,7 +7,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class JwtTokenResDto {
-    private String accessToken;
-    private String refreshToken;
+public class KakaoAuthCodeDto {
+    private String token;
 }

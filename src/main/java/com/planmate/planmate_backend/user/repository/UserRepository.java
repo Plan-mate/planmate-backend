@@ -1,6 +1,6 @@
-package com.planmate.planmate_backend.auth.repository;
+package com.planmate.planmate_backend.user.repository;
 
-import com.planmate.planmate_backend.auth.entity.User;
+import com.planmate.planmate_backend.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

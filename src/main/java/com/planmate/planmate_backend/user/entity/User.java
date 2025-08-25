@@ -1,4 +1,4 @@
-package com.planmate.planmate_backend.auth.entity;
+package com.planmate.planmate_backend.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

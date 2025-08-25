@@ -30,13 +30,12 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(appProperties.getJwt().getRefreshSecret().getBytes());
     }
 
-    public String generateAccessToken(Long userId, String nickname) {
+    public String generateAccessToken(Long userId) {
         Instant now = Instant.now();
         Date expiry = Date.from(now.plusSeconds(appProperties.getJwt().getAccessExpiration()));
 
         return Jwts.builder()
                 .subject(userId.toString())
-                .claim("nickname", nickname)
                 .issuedAt(Date.from(now))
                 .expiration(expiry)
                 .signWith(getAccessKey())

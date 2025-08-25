@@ -1,7 +1,7 @@
 package com.planmate.planmate_backend.auth.service;
 
 import com.planmate.planmate_backend.common.config.AppProperties;
-import com.planmate.planmate_backend.auth.dto.KakaoProfileDto;
+import com.planmate.planmate_backend.user.dto.ProfileDto;
 import com.planmate.planmate_backend.common.exception.BusinessException;
 import org.springframework.core.ParameterizedTypeReference;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +54,7 @@ public class KakaoOAuthService {
     }
 
     @SuppressWarnings("unchecked")
-    public KakaoProfileDto getUserInfo(String code) {
+    public ProfileDto getUserInfo(String code) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(getAccessToken(code));
         HttpEntity<Void> request = new HttpEntity<>(headers);
@@ -86,6 +86,6 @@ public class KakaoOAuthService {
             profileImage = (String) properties.get("profile_image");
         }
 
-        return new KakaoProfileDto(id, nickname, profileImage);
+        return new ProfileDto(id, nickname, profileImage);
     }
 }

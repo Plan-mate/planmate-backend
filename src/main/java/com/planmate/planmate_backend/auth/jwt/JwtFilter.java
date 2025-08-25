@@ -32,12 +32,10 @@ public class JwtFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
 
-            // 유틸에서 Claims 가져오기 (유효하지 않으면 null)
             Claims claims = jwtUtil.validateAccessToken(token);
 
             if (claims != null) {
                 Long userId = Long.parseLong(claims.getSubject());
-
                 Authentication authentication = new UsernamePasswordAuthenticationToken(
                         userId, null, Collections.emptyList()
                 );

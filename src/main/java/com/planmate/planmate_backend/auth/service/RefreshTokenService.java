@@ -3,9 +3,9 @@ package com.planmate.planmate_backend.auth.service;
 import com.planmate.planmate_backend.auth.jwt.JwtUtil;
 import com.planmate.planmate_backend.common.util.TokenHasher;
 import com.planmate.planmate_backend.common.exception.BusinessException;
-import com.planmate.planmate_backend.auth.repository.UserRepository;
-import com.planmate.planmate_backend.auth.dto.JwtTokenResDto;
-import com.planmate.planmate_backend.auth.entity.User;
+import com.planmate.planmate_backend.user.repository.UserRepository;
+import com.planmate.planmate_backend.auth.dto.JwtTokenDto;
+import com.planmate.planmate_backend.user.entity.User;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +22,7 @@ public class RefreshTokenService {
     private final OAuthLoginService oAuthLoginService;
 
     @Transactional
-    public JwtTokenResDto refreshToken(String token) {
+    public JwtTokenDto refreshToken(String token) {
         String refreshToken = extractToken(token);
 
         Claims payload = jwtUtil.validateRefreshToken(refreshToken);
@@ -32,7 +32,7 @@ public class RefreshTokenService {
 
         checkRefreshToken(refreshToken, user);
 
-        JwtTokenResDto newTokens = oAuthLoginService.issueTokens(user);
+        JwtTokenDto newTokens = oAuthLoginService.issueTokens(user);
 
         oAuthLoginService.updateRefreshToken(user, newTokens.getRefreshToken());
 

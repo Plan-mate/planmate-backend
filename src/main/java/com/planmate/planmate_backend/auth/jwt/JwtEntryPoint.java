@@ -28,9 +28,8 @@ public class JwtEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
         Throwable cause = authException.getCause();
-        ErrorResponse errorResponse = cause instanceof ExpiredJwtException
-                ? new ErrorResponse("TOKEN_EXPIRED", "엑세스 토큰이 만료되었습니다.")
-                : new ErrorResponse("UNAUTHORIZED", "인증에 실패했습니다.");
+
+        ErrorResponse errorResponse = new ErrorResponse("UNAUTHORIZED","인증에 실패했습니다.");
 
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }

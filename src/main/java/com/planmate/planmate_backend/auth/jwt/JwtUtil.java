@@ -55,15 +55,11 @@ public class JwtUtil {
     }
 
     public Claims validateAccessToken(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith((SecretKey) getAccessKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-        } catch (JwtException e) {
-            return null;
-        }
+        return Jwts.parser()
+                .verifyWith((SecretKey) getAccessKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public Claims validateRefreshToken(String token) {

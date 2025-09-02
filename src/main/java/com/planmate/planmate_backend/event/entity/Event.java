@@ -1,7 +1,6 @@
 package com.planmate.planmate_backend.event.entity;
 
 import com.planmate.planmate_backend.user.entity.User;
-import com.planmate.planmate_backend.event.entity.Category;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -17,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(callSuper = true, includeFieldNames = true)
 @EntityListeners(AuditingEntityListener.class)
 public class Event {
 
@@ -44,6 +44,9 @@ public class Event {
 
     @Column(name = "is_recurring")
     private Boolean isRecurring = false;
+
+    @Column(name = "original_event_id")
+    private Long originalEventId;
 
     @CreatedDate
     @Column(updatable = false, name = "created_at")

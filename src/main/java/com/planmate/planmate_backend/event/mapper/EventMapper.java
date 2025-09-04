@@ -1,40 +1,29 @@
 package com.planmate.planmate_backend.event.mapper;
 
-import com.planmate.planmate_backend.event.dto.ResEventDto;
-import com.planmate.planmate_backend.event.dto.CategoryDto;
-import com.planmate.planmate_backend.event.dto.CreateRecurrenceRuleDto;
+import com.planmate.planmate_backend.event.dto.EventResDto;
+import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
 import com.planmate.planmate_backend.event.entity.Event;
-import com.planmate.planmate_backend.event.entity.RecurrenceRule;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-
 @Component
+@RequiredArgsConstructor
 public class EventMapper {
 
-    public ResEventDto toDto(Event event, CreateRecurrenceRuleDto rule) {
-            return new ResEventDto(
+    private final CategoryMapper categoryMapper;
+    private final RecurrenceRuleMapper recurrenceRuleMapper;
+
+    public EventResDto toDto(Event event, RecurrenceRuleDto rule) {
+        return new EventResDto(
                 event.getId(),
-                new CategoryDto(
-                        event.getCategory().getId(),
-                        event.getCategory().getName(),
-                        event.getCategory().getColor()
-                ),
+                categoryMapper.toDto(event.getCategory()),
                 event.getTitle(),
                 event.getDescription(),
                 event.getStartTime(),
                 event.getEndTime(),
                 event.getIsRecurring(),
                 event.getOriginalEventId(),
-                rule != null
-                    ? new CreateRecurrenceRuleDto(
-                        rule.getDaysOfMonth(),
-                        rule.getDaysOfWeek(),
-                        rule.getFrequency(),
-                        rule.getInterval(),
-                        rule.getEndDate()
-                      )
-                    : null,
+                rule != null ? recurrenceRuleMapper.toDto(rule) : null,
                 event.getCreatedAt(),
                 event.getUpdatedAt()
         );

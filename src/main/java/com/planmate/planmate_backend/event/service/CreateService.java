@@ -1,9 +1,9 @@
 package com.planmate.planmate_backend.event.service;
 
 import com.planmate.planmate_backend.common.exception.BusinessException;
-import com.planmate.planmate_backend.event.dto.CreateEventDto;
-import com.planmate.planmate_backend.event.dto.CreateRecurrenceRuleDto;
-import com.planmate.planmate_backend.event.dto.ResEventDto;
+import com.planmate.planmate_backend.event.dto.EventDto;
+import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
+import com.planmate.planmate_backend.event.dto.EventResDto;
 import com.planmate.planmate_backend.event.entity.RecurrenceRule;
 import com.planmate.planmate_backend.event.mapper.EventMapper;
 import com.planmate.planmate_backend.event.repository.EventRepository;
@@ -18,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,9 +31,10 @@ public class CreateService {
     private final CategoryRepository categoryRepository;
     private final ProfileService profileService;
     private final EventMapper eventMapper;
+    private final GetService getService; // 반복 인스턴스 생성 로직 재사용
 
     @Transactional
-    public ResEventDto createEvent(Long userId, CreateEventDto dto) {
+    public List<EventResDto> createEvent(Long userId, EventDto dto) {
 
         User user = profileService.getUser(userId);
 
@@ -50,10 +53,11 @@ public class CreateService {
 
         eventRepository.save(event);
 
-        if (Boolean.TRUE.equals(dto.getIsRecurring()) && dto.getRecurrenceRule() != null) {
-            CreateRecurrenceRuleDto ruleDto = dto.getRecurrenceRule();
+        RecurrenceRuleDto ruleDto = dto.getRecurrenceRule();
+        RecurrenceRule savedRule = null;
 
-            RecurrenceRule rule = RecurrenceRule.builder()
+        if (Boolean.TRUE.equals(dto.getIsRecurring()) && ruleDto != null) {
+            savedRule = RecurrenceRule.builder()
                     .event(event)
                     .frequency(ruleDto.getFrequency())
                     .interval(ruleDto.getInterval() != null ? ruleDto.getInterval() : 1)
@@ -63,10 +67,26 @@ public class CreateService {
                     .endDate(ruleDto.getEndDate())
                     .build();
 
-            recurrenceRuleRepository.save(rule);
-
+            recurrenceRuleRepository.save(savedRule);
         }
 
-        return eventMapper.toDto(event, dto.getRecurrenceRule());
+        List<EventResDto> result = new ArrayList<>();
+
+        result.add(eventMapper.toDto(event, ruleDto));
+
+        if (Boolean.TRUE.equals(dto.getIsRecurring()) && savedRule != null) {
+            List<Event> instances = getService.generateRecurringInstances(
+                    event,
+                    savedRule,
+                    event.getStartTime(),
+                    ruleDto.getEndDate() != null ? ruleDto.getEndDate() : event.getEndTime()
+            );
+
+            for (Event inst : instances) {
+                result.add(eventMapper.toDto(inst, ruleDto));
+            }
+        }
+
+        return result;
     }
 }

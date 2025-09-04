@@ -43,7 +43,7 @@ public class RecurrenceRule {
     @Column(name = "days_of_month")
     private String daysOfMonth;
 
-    private LocalDate endDate;
+    private LocalDateTime endDate;
 
     @CreatedDate
     @Column(updatable = false, name = "created_at")

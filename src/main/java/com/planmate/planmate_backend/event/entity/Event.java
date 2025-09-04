@@ -42,8 +42,8 @@ public class Event {
 
     private LocalDateTime endTime;
 
-    @Column(name = "is_recurring")
-    private Boolean isRecurring = false;
+    @Column(name = "is_recurring", nullable = false)
+    private Boolean isRecurring;
 
     @Column(name = "original_event_id")
     private Long originalEventId;

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ResEventDto {
+public class EventResDto {
     private Long id;
     private CategoryDto category;
     private String title;
@@ -18,7 +18,7 @@ public class ResEventDto {
     private LocalDateTime endTime;
     private Boolean isRecurring;
     private Long originalEventId;
-    private CreateRecurrenceRuleDto recurrenceRule;
+    private RecurrenceRuleDto recurrenceRule;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreateEventDto {
+public class EventDto {
 
     @NotBlank(message = "categoryId는 비어 있을 수 없습니다.")
     @Pattern(regexp = "^[0-9]+$", message = "categoryId는 숫자여야 합니다.")
@@ -31,5 +31,5 @@ public class CreateEventDto {
     private Boolean isRecurring;
 
     @Valid
-    private CreateRecurrenceRuleDto recurrenceRule;
+    private RecurrenceRuleDto recurrenceRule;
 }

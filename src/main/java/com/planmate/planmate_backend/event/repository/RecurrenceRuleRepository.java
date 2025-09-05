@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface RecurrenceRuleRepository extends JpaRepository<RecurrenceRule, Long> {
     @Query("""
@@ -18,4 +19,7 @@ public interface RecurrenceRuleRepository extends JpaRepository<RecurrenceRule, 
     """)
     List<RecurrenceRule> findRecurringEventsEndingInPeriod(Long userId, LocalDateTime start, LocalDateTime end);
 
+    Optional<RecurrenceRule> findByEventId(Long eventId);
+
+    void deleteByEventId(Long eventId);
 }

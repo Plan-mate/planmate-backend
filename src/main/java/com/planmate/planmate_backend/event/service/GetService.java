@@ -3,7 +3,6 @@ package com.planmate.planmate_backend.event.service;
 import com.planmate.planmate_backend.event.dto.EventResDto;
 import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
 import com.planmate.planmate_backend.event.dto.CategoryDto;
-import com.planmate.planmate_backend.event.entity.Category;
 import com.planmate.planmate_backend.event.entity.RecurrenceRule;
 import com.planmate.planmate_backend.event.entity.Event;
 import com.planmate.planmate_backend.event.mapper.CategoryMapper;
@@ -44,14 +43,11 @@ public class GetService {
         LocalDateTime startDateTime = start.atStartOfDay();
         LocalDateTime endDateTime = end.atTime(23, 59, 59);
 
-        // 원본 이벤트 조회
         List<Event> events = eventRepository.findByUserAndPeriod(userId, startDateTime, endDateTime);
 
-        // 반복 규칙 조회
         List<RecurrenceRule> rules =
                 recurrenceRuleRepository.findRecurringEventsEndingInPeriod(userId, startDateTime, endDateTime);
 
-        // 반복 규칙 DTO Map
         Map<Long, RecurrenceRuleDto> ruleMap = rules.stream()
                 .collect(Collectors.toMap(
                         r -> r.getEvent().getId(),
@@ -69,7 +65,6 @@ public class GetService {
                         )
                 ));
 
-        // 원본 이벤트 슬롯 체크
         List<EventResDto> result = new ArrayList<>();
         List<Event> originalEvents = new ArrayList<>();
         for (Event e : events) {
@@ -78,7 +73,6 @@ public class GetService {
             result.add(eventMapper.toDto(e, ruleDto));
         }
 
-        // 반복 인스턴스 생성
         for (RecurrenceRule rule : rules) {
             Event baseEvent = rule.getEvent();
             RecurrenceRuleDto ruleDto = ruleMap.get(baseEvent.getId());
@@ -86,7 +80,6 @@ public class GetService {
             List<Event> instances = generateRecurringInstances(baseEvent, rule, startDateTime, endDateTime);
 
             for (Event inst : instances) {
-                // 원본 이벤트와만 겹침 체크
                 boolean overlapsOriginal = originalEvents.stream()
                         .anyMatch(orig -> isOverlap(orig, inst));
                 if (!overlapsOriginal) {
@@ -98,14 +91,9 @@ public class GetService {
         return result;
     }
 
-    // 동일 시간 범위 이벤트 판단
     private boolean isOverlap(Event e1, Event e2) {
         return !e1.getEndTime().isBefore(e2.getStartTime()) &&
                 !e1.getStartTime().isAfter(e2.getEndTime());
-    }
-
-    private String slotKey(LocalDateTime start, LocalDateTime end) {
-        return start.toString() + "|" + end.toString();
     }
 
     public List<Event> generateRecurringInstances(Event baseEvent,

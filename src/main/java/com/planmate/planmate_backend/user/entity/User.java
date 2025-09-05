@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(callSuper = true, includeFieldNames = true)
 @EntityListeners(AuditingEntityListener.class)
 public class User {
     @Id

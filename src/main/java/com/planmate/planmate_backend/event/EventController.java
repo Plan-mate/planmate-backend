@@ -1,18 +1,15 @@
 package com.planmate.planmate_backend.event;
 
-import com.planmate.planmate_backend.event.dto.CategoryDto;
-import com.planmate.planmate_backend.event.dto.DateDto;
-import com.planmate.planmate_backend.event.dto.EventDto;
-import com.planmate.planmate_backend.event.dto.EventResDto;
+import com.planmate.planmate_backend.event.dto.*;
 import com.planmate.planmate_backend.event.service.CreateService;
 import com.planmate.planmate_backend.event.service.GetService;
+import com.planmate.planmate_backend.event.service.UpdateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -21,6 +18,7 @@ import java.util.List;
 public class EventController {
 
     private final CreateService createService;
+    private final UpdateService updateService;
     private final GetService getService;
 
     @GetMapping("/category")
@@ -37,10 +35,17 @@ public class EventController {
     }
 
     @PostMapping()
-    public List<EventResDto> createEvent(@AuthenticationPrincipal Long userId, @Valid @RequestBody EventDto dto) {
+    public List<EventResDto> createEvent(@AuthenticationPrincipal Long userId, @Valid @RequestBody EventReqDto dto) {
         return createService.createEvent(userId, dto);
     }
 
-
-
+    @PatchMapping("/{eventId}")
+    public List<EventResDto> updateEvent(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long eventId,
+            @Valid @RequestBody EventUpdReqDto dto)
+    {
+        System.out.println(dto.toString());
+        return updateService.updateEvent(userId, eventId, dto);
+    }
 }

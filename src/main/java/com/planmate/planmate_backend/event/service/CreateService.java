@@ -1,7 +1,7 @@
 package com.planmate.planmate_backend.event.service;
 
 import com.planmate.planmate_backend.common.exception.BusinessException;
-import com.planmate.planmate_backend.event.dto.EventDto;
+import com.planmate.planmate_backend.event.dto.EventReqDto;
 import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
 import com.planmate.planmate_backend.event.dto.EventResDto;
 import com.planmate.planmate_backend.event.entity.RecurrenceRule;
@@ -34,7 +34,7 @@ public class CreateService {
     private final GetService getService; // 반복 인스턴스 생성 로직 재사용
 
     @Transactional
-    public List<EventResDto> createEvent(Long userId, EventDto dto) {
+    public List<EventResDto> createEvent(Long userId, EventReqDto dto) {
 
         User user = profileService.getUser(userId);
 

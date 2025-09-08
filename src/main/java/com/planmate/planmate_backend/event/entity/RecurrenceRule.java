@@ -7,7 +7,6 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import com.planmate.planmate_backend.common.enums.Frequency;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity

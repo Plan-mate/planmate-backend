@@ -12,6 +12,8 @@ public interface EventRepository extends  JpaRepository<Event, Long> {
 
     Optional<Event> findByIdAndUserId(Long eventId, Long userId);
 
+    List<Event> findByOriginalEventId(Long originalEventId);
+
     @Query("SELECT e FROM Event e WHERE e.user.id = :userId AND e.startTime < :end AND e.endTime >= :start")
     List<Event> findByUserAndPeriod(Long userId, LocalDateTime start, LocalDateTime end);
 }

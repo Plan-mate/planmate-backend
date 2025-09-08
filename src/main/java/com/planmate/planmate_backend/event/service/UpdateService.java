@@ -74,7 +74,7 @@ public class UpdateService {
     }
 
     private Event handleThisInstanceUpdate(Event originalEvent, EventReqDto dto) {
-        LocalDate instanceDate = originalEvent.getStartTime().toLocalDate();
+        LocalDate instanceDate = dto.getStartTime().toLocalDate();
         Event override = eventMapper.createOverrideEvent(originalEvent, dto);
 
         setCategoryIfPresent(override, dto);
@@ -92,7 +92,7 @@ public class UpdateService {
     }
 
     private Event handleThisAndFutureUpdate(Event originalEvent, EventReqDto dto) {
-        LocalDate instanceDate = originalEvent.getStartTime().toLocalDate();
+        LocalDate instanceDate = dto.getStartTime().toLocalDate();
 
         RecurrenceRule oldRule = recurrenceRuleRepository.findByEventId(originalEvent.getId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "반복 규칙을 찾지 못했습니다."));
@@ -168,7 +168,10 @@ public class UpdateService {
                                 ? finalRuleDto.getEndDate()
                                 : event.getEndTime()
                 );
-                instances.forEach(inst -> result.add(eventMapper.toDto(inst, finalRuleDto)));
+
+                instances.stream()
+                        .filter(inst -> !inst.getStartTime().toLocalDate().equals(event.getStartTime().toLocalDate()))
+                        .forEach(inst -> result.add(eventMapper.toDto(inst, finalRuleDto)));
             });
         }
 

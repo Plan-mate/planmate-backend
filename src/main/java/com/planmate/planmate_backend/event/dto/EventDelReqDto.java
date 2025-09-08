@@ -5,10 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class EventDelReqDto {
-    private Long eventId;
     private Scope scope;
+    private LocalDateTime targetTime;
+
 }

@@ -2,9 +2,11 @@ package com.planmate.planmate_backend.event;
 
 import com.planmate.planmate_backend.event.dto.*;
 import com.planmate.planmate_backend.event.service.CreateService;
+import com.planmate.planmate_backend.event.service.DeleteService;
 import com.planmate.planmate_backend.event.service.GetService;
 import com.planmate.planmate_backend.event.service.UpdateService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +21,7 @@ public class EventController {
 
     private final CreateService createService;
     private final UpdateService updateService;
+    private final DeleteService deleteService;
     private final GetService getService;
 
     @GetMapping("/category")
@@ -45,9 +48,20 @@ public class EventController {
             @PathVariable Long eventId,
             @Valid @RequestBody EventUpdReqDto dto)
     {
-        System.out.println(dto);
-        List<EventResDto> aaa =  updateService.updateEvent(userId, eventId, dto);
+        List<EventResDto> aaa = updateService.updateEvent(userId, eventId, dto);
         System.out.println(aaa);
         return aaa;
+    }
+
+    @DeleteMapping("/{eventId}")
+    public ResponseEntity<Void> deleteEvent(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long eventId,
+            @Valid @RequestBody EventDelReqDto dto
+    ) {
+        System.out.println(dto);
+        System.out.println(eventId);
+        deleteService.deleteEvent(userId, eventId, dto);
+        return ResponseEntity.noContent().build();
     }
 }

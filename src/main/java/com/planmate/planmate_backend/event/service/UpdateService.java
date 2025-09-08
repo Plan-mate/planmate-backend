@@ -1,5 +1,6 @@
 package com.planmate.planmate_backend.event.service;
 
+import com.planmate.planmate_backend.common.exception.BusinessException;
 import com.planmate.planmate_backend.event.dto.EventReqDto;
 import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
 import com.planmate.planmate_backend.event.dto.EventResDto;
@@ -8,18 +9,21 @@ import com.planmate.planmate_backend.event.entity.Event;
 import com.planmate.planmate_backend.event.entity.RecurrenceException;
 import com.planmate.planmate_backend.event.entity.RecurrenceRule;
 import com.planmate.planmate_backend.event.mapper.EventMapper;
+import com.planmate.planmate_backend.event.mapper.RecurrenceRuleMapper;
 import com.planmate.planmate_backend.event.repository.CategoryRepository;
 import com.planmate.planmate_backend.event.repository.EventRepository;
 import com.planmate.planmate_backend.event.repository.RecurrenceExceptionRepository;
 import com.planmate.planmate_backend.event.repository.RecurrenceRuleRepository;
 import com.planmate.planmate_backend.common.enums.Scope;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class UpdateService {
@@ -29,104 +33,97 @@ public class UpdateService {
     private final RecurrenceExceptionRepository recurrenceExceptionRepository;
     private final CategoryRepository categoryRepository;
     private final EventMapper eventMapper;
+    private final RecurrenceRuleMapper recurrenceRuleMapper;
     private final GetService getService;
 
     @Transactional
     public List<EventResDto> updateEvent(Long userId, Long eventId, EventUpdReqDto dto) {
-        Event originalEvent = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found: " + eventId));
+        Event originalEvent = eventRepository.findByIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "이벤트를 찾을 수 없습니다."));
 
         Event updated;
         Scope scope = dto.getScope();
-
-        // 단일 이벤트
-        if (!Boolean.TRUE.equals(originalEvent.getIsRecurring())) {
-            if (scope != Scope.SINGLE) {
-                throw new IllegalArgumentException("Non-recurring events must use SINGLE scope");
-            }
-            updated = handleSingleUpdate(originalEvent, dto.getEvent());
-        } else { // 반복 이벤트
-            updated = switch (scope) {
-                case ALL -> handleAllUpdate(originalEvent, dto.getEvent());
-                case THIS -> handleThisInstanceUpdate(originalEvent, dto.getEvent());
-                case THIS_AND_FUTURE -> handleThisAndFutureUpdate(originalEvent, dto.getEvent());
-                default -> throw new IllegalArgumentException("Unsupported scope: " + scope);
-            };
+        switch (scope) {
+            case SINGLE -> updated = handleSingleUpdate(originalEvent, dto.getEvent());
+            case ALL -> updated = handleAllUpdate(originalEvent, dto.getEvent());
+            case THIS -> updated = handleThisInstanceUpdate(originalEvent, dto.getEvent());
+            case THIS_AND_FUTURE -> updated = handleThisAndFutureUpdate(originalEvent, dto.getEvent());
+            default -> throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 스코프입니다.");
         }
 
         return buildResultList(updated, dto.getEvent().getRecurrenceRule());
     }
 
-    /* 단일 이벤트 수정 */
     private Event handleSingleUpdate(Event event, EventReqDto dto) {
+        setCategoryIfPresent(event, dto);
+        eventMapper.updateEventFromDto(event, dto);
+        handleRecurrence(event, dto, Scope.SINGLE);
+        return eventRepository.save(event);
+    }
+
+    private Event handleAllUpdate(Event event, EventReqDto dto) {
+        recurrenceExceptionRepository.deleteByEventId(event.getId());
+        setCategoryIfPresent(event, dto);
+
+        dto.setStartTime(null);
+        dto.setEndTime(null);
+
+        eventMapper.updateEventFromDto(event, dto);
+        handleRecurrence(event, dto, Scope.ALL);
+        return eventRepository.save(event);
+    }
+
+    private Event handleThisInstanceUpdate(Event originalEvent, EventReqDto dto) {
+        LocalDate instanceDate = originalEvent.getStartTime().toLocalDate();
+        Event override = eventMapper.createOverrideEvent(originalEvent, dto);
+
+        setCategoryIfPresent(override, dto);
+
+        Event savedOverride = saveAndHandleRecurrence(override, dto, Scope.THIS);
+
+        RecurrenceException ex = RecurrenceException.builder()
+                .event(originalEvent)
+                .exceptionDate(instanceDate)
+                .overrideEvent(savedOverride)
+                .build();
+        recurrenceExceptionRepository.save(ex);
+
+        return savedOverride;
+    }
+
+    private Event handleThisAndFutureUpdate(Event originalEvent, EventReqDto dto) {
+        LocalDate instanceDate = originalEvent.getStartTime().toLocalDate();
+
+        RecurrenceRule oldRule = recurrenceRuleRepository.findByEventId(originalEvent.getId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "반복 규칙을 찾지 못했습니다."));
+
+        oldRule.setEndDate(instanceDate.atStartOfDay().minusSeconds(1));
+        recurrenceRuleRepository.save(oldRule);
+
+        Event next = eventMapper.createOverrideEvent(originalEvent, dto);
+        setCategoryIfPresent(next, dto);
+
+        return saveAndHandleRecurrence(next, dto, Scope.THIS_AND_FUTURE);
+    }
+
+    private void setCategoryIfPresent(Event event, EventReqDto dto) {
         if (dto.getCategoryId() != null) {
             Long categoryId = Long.parseLong(dto.getCategoryId());
             categoryRepository.findById(categoryId).ifPresent(event::setCategory);
         }
-
-        eventMapper.updateEventFromDto(event, dto);
-        handleRecurrence(event, dto);
-
-        return eventRepository.save(event);
     }
 
-
-    /* 전체 반복 이벤트 수정 */
-    private Event handleAllUpdate(Event event, EventReqDto dto) {
-        eventMapper.updateEventFromDto(event, dto);
-        handleRecurrence(event, dto);
-        return eventRepository.save(event);
+    private Event saveAndHandleRecurrence(Event event, EventReqDto dto, Scope scope) {
+        Event saved = eventRepository.save(event);
+        handleRecurrence(saved, dto, scope);
+        return saved;
     }
 
-    /* 특정 인스턴스만 수정 */
-    private Event handleThisInstanceUpdate(Event originalEvent, EventReqDto dto) {
-        LocalDate instanceDate = originalEvent.getStartTime().toLocalDate();
-
-        // 기존 이벤트를 예외 처리
-        RecurrenceException ex = RecurrenceException.builder()
-                .event(originalEvent)
-                .exceptionDate(instanceDate)
-                .build();
-        recurrenceExceptionRepository.save(ex);
-
-        // Override Event 생성
-        Event override = eventMapper.createOverrideEvent(originalEvent, dto);
-        eventRepository.save(override);
-
-        // 필요시 반복 규칙 처리
-        handleRecurrence(override, dto);
-
-        ex.setOverrideEvent(override);
-        recurrenceExceptionRepository.save(ex);
-
-        return override;
-    }
-
-    /* 현재 인스턴스 + 이후 이벤트 수정 */
-    private Event handleThisAndFutureUpdate(Event originalEvent, EventReqDto dto) {
-        LocalDate instanceDate = originalEvent.getStartTime().toLocalDate();
-
-        // 기존 Rule 종료 날짜 조정
-        RecurrenceRule oldRule = recurrenceRuleRepository.findByEventId(originalEvent.getId())
-                .orElseThrow(() -> new RuntimeException("RecurrenceRule not found"));
-        oldRule.setEndDate(instanceDate.atStartOfDay().minusSeconds(1));
-        recurrenceRuleRepository.save(oldRule);
-
-        // 새 이벤트 생성
-        Event next = eventMapper.createOverrideEvent(originalEvent, dto);
-        eventRepository.save(next);
-
-        handleRecurrence(next, dto);
-
-        return next;
-    }
-
-    /* 반복 여부 처리 */
-    private void handleRecurrence(Event event, EventReqDto dto) {
+    private void handleRecurrence(Event event, EventReqDto dto, Scope scope) {
         if (Boolean.TRUE.equals(dto.getIsRecurring()) && dto.getRecurrenceRule() != null) {
             event.setIsRecurring(true);
             createOrUpdateRecurrenceRule(event, dto.getRecurrenceRule());
-        } else {
+        } else if (scope == Scope.ALL && Boolean.FALSE.equals(dto.getIsRecurring())) {
             event.setIsRecurring(false);
             recurrenceRuleRepository.deleteByEventId(event.getId());
         }
@@ -151,21 +148,30 @@ public class UpdateService {
 
     private List<EventResDto> buildResultList(Event event, RecurrenceRuleDto ruleDto) {
         List<EventResDto> result = new ArrayList<>();
+
+        if (ruleDto == null && Boolean.TRUE.equals(event.getIsRecurring())) {
+            ruleDto = recurrenceRuleRepository.findByEventId(event.getId())
+                    .map(recurrenceRuleMapper::convertRuleToDto)
+                    .orElse(null);
+        }
+
         result.add(eventMapper.toDto(event, ruleDto));
 
         if (Boolean.TRUE.equals(event.getIsRecurring())) {
+            RecurrenceRuleDto finalRuleDto = ruleDto;
             recurrenceRuleRepository.findByEventId(event.getId()).ifPresent(savedRule -> {
                 List<Event> instances = getService.generateRecurringInstances(
                         event,
                         savedRule,
                         event.getStartTime(),
-                        ruleDto != null && ruleDto.getEndDate() != null
-                                ? ruleDto.getEndDate()
+                        finalRuleDto != null && finalRuleDto.getEndDate() != null
+                                ? finalRuleDto.getEndDate()
                                 : event.getEndTime()
                 );
-                instances.forEach(inst -> result.add(eventMapper.toDto(inst, ruleDto)));
+                instances.forEach(inst -> result.add(eventMapper.toDto(inst, finalRuleDto)));
             });
         }
+
         return result;
     }
 }

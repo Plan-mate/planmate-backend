@@ -45,7 +45,9 @@ public class EventController {
             @PathVariable Long eventId,
             @Valid @RequestBody EventUpdReqDto dto)
     {
-        System.out.println(dto.toString());
-        return updateService.updateEvent(userId, eventId, dto);
+        System.out.println(dto);
+        List<EventResDto> aaa =  updateService.updateEvent(userId, eventId, dto);
+        System.out.println(aaa);
+        return aaa;
     }
 }

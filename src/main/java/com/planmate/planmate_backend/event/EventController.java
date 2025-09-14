@@ -46,11 +46,9 @@ public class EventController {
     public List<EventResDto> updateEvent(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long eventId,
-            @Valid @RequestBody EventUpdReqDto dto)
-    {
-        List<EventResDto> aaa = updateService.updateEvent(userId, eventId, dto);
-        System.out.println(aaa);
-        return aaa;
+            @Valid @RequestBody EventUpdReqDto dto
+    ) {
+        return updateService.updateEvent(userId, eventId, dto);
     }
 
     @DeleteMapping("/{eventId}")
@@ -59,8 +57,6 @@ public class EventController {
             @PathVariable Long eventId,
             @Valid @RequestBody EventDelReqDto dto
     ) {
-        System.out.println(dto);
-        System.out.println(eventId);
         deleteService.deleteEvent(userId, eventId, dto);
         return ResponseEntity.noContent().build();
     }

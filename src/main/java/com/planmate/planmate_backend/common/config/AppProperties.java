@@ -12,6 +12,7 @@ import lombok.Setter;
 public class AppProperties {
     private Jwt jwt = new Jwt();
     private Kakao kakao = new Kakao();
+    private Weather weather = new Weather();
 
     @Getter
     @Setter
@@ -27,6 +28,12 @@ public class AppProperties {
     public static class Kakao {
         private String clientId;
         private String redirectUri;
+    }
+
+    @Getter
+    @Setter
+    public static class Weather {
+        private String apiKey;
     }
 }
 

@@ -1,6 +1,7 @@
 package com.planmate.planmate_backend.summary;
 
 import com.planmate.planmate_backend.summary.dto.SummaryReqDto;
+import com.planmate.planmate_backend.summary.dto.SummaryResDto;
 import com.planmate.planmate_backend.summary.service.SummaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,8 @@ public class SummaryController {
     private final SummaryService summaryService;
 
     @GetMapping("/today")
-    public String getTodaySummary(@Valid SummaryReqDto dto) {
-        return summaryService.getTodaySummary(dto);
+    public SummaryResDto getTodaySummary(@AuthenticationPrincipal Long userId, @Valid SummaryReqDto dto) {
+        return summaryService.getTodaySummary(userId, dto);
     }
 
     // 추천 API
@@ -26,5 +27,4 @@ public class SummaryController {
     public void getRecommendations(@AuthenticationPrincipal Long userId) {
         System.out.println(userId);
     }
-
 }

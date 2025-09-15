@@ -10,8 +10,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -28,27 +30,29 @@ public class WeatherService {
 
     private String getWeatherDescription(String pty, String sky) {
         if ("0".equals(pty)) {
-            switch (sky) {
-                case "1": return "맑음";
-                case "3": return "구름 많음";
-                case "4": return "흐림";
-            }
+            return switch (sky) {
+                case "1" -> "맑음";
+                case "3" -> "구름 많음";
+                case "4" -> "흐림";
+                default -> "알 수 없음";
+            };
         } else {
-            switch (pty) {
-                case "1": return "비";
-                case "2": return "비/눈";
-                case "3": return "눈";
-                case "4": return "소나기";
-            }
+            return switch (pty) {
+                case "1" -> "비";
+                case "2" -> "비/눈";
+                case "3" -> "눈";
+                case "4" -> "소나기";
+                default -> "알 수 없음";
+            };
         }
-        return "알 수 없음";
     }
 
     public WeatherSummaryDto getWeatherSummary(int nx, int ny, String locationName) {
         try {
             LocalDate now = LocalDate.now();
             String formattedDate = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String formattedTime = String.format("%02d00", java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
+            String formattedTime = String.format("%02d00",
+                    java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
 
             String ncstUrl = UriComponentsBuilder.newInstance()
                     .scheme("https")
@@ -71,7 +75,6 @@ public class WeatherService {
             ncstNode.forEach(ncstItems::add);
 
             String temp = findItemValue(ncstItems, "T1H");
-            String humidity = findItemValue(ncstItems, "REH");
             String pty = findItemValue(ncstItems, "PTY");
 
             String fcstUrl = UriComponentsBuilder.newInstance()
@@ -116,31 +119,29 @@ public class WeatherService {
             List<JsonNode> vilageItems = new ArrayList<>();
             vilageNode.forEach(vilageItems::add);
 
-            List<JsonNode> tmxItems = vilageItems.stream().filter(item -> "TMX".equals(item.path("category").asText())).toList();
-            List<JsonNode> tmnItems = vilageItems.stream().filter(item -> "TMN".equals(item.path("category").asText())).toList();
-
-            double maxTemp = tmxItems.stream()
+            double maxTemp = vilageItems.stream()
+                    .filter(item -> "TMX".equals(item.path("category").asText()))
                     .mapToDouble(item -> parseDoubleSafe(item.path("fcstValue").asText(), Double.NEGATIVE_INFINITY))
                     .max().orElse(Double.NaN);
 
-            double minTemp = tmnItems.stream()
+            double minTemp = vilageItems.stream()
+                    .filter(item -> "TMN".equals(item.path("category").asText()))
                     .mapToDouble(item -> parseDoubleSafe(item.path("fcstValue").asText(), Double.POSITIVE_INFINITY))
                     .min().orElse(Double.NaN);
 
-            List<String> rainTimes = vilageItems.stream()
+            int currentHour = LocalDateTime.now().getHour();
+            List<Integer> rainHours = vilageItems.stream()
                     .filter(item -> "PTY".equals(item.path("category").asText()) && !"0".equals(item.path("fcstValue").asText()))
-                    .map(item -> {
-                        String t = item.path("fcstTime").asText();
-                        int hour = Integer.parseInt(t.substring(0, 2));
-                        return hour + "시";
-                    })
+                    .map(item -> Integer.parseInt(item.path("fcstTime").asText().substring(0, 2)))
+                    .filter(hour -> hour >= currentHour)
+                    .sorted()
                     .toList();
 
-            String rainTimeText = rainTimes.isEmpty() ? "오늘은 강수가 없습니다." :
-                    "오늘은 " + String.join(", ", rainTimes) + "에 강수가 예보되어 있습니다.";
+            String rainTimeText = formatRainTimes(rainHours);
 
-            String message = String.format("%s의 현재 날씨는 %s이고, 온도는 %s℃, 습도는 %s%%입니다. 오늘 날씨는 최고기온 %.1f℃, 최저기온 %.1f℃이며. %s",
-                    locationName, sky, temp, humidity, maxTemp, minTemp, rainTimeText);
+            String message = String.format(
+                    "%s의 현재 날씨는 %s이고, 온도는 %s℃입니다. 오늘 날씨는 최고기온 %.1f℃, 최저기온 %.1f℃이며. %s",
+                    locationName, sky, temp, maxTemp, minTemp, rainTimeText);
 
             return new WeatherSummaryDto(sky, message);
 
@@ -163,5 +164,38 @@ public class WeatherService {
     private double parseDoubleSafe(String val, double defaultVal) {
         try { return Double.parseDouble(val); }
         catch (NumberFormatException e) { return defaultVal; }
+    }
+
+    private String formatRainTimes(List<Integer> hours) {
+        if (hours.isEmpty()) return "오늘은 강수가 없습니다.";
+
+        List<String> ranges = new ArrayList<>();
+        int start = hours.get(0);
+        int prev = start;
+
+        for (int i = 1; i < hours.size(); i++) {
+            int current = hours.get(i);
+            if (current == prev + 1) {
+                prev = current;
+            } else {
+                ranges.add(formatRange(start, prev));
+                start = current;
+                prev = current;
+            }
+        }
+        ranges.add(formatRange(start, prev));
+
+        if (ranges.size() == 1) {
+            return "오늘은 " + ranges.get(0) + " 비 예보가 있습니다.";
+        } else if (ranges.size() <= 3) {
+            return "오늘은 " + String.join(", ", ranges) + " 비 예보가 있습니다.";
+        } else {
+            return "오늘은 산발적으로 비가 예보되어 있습니다.";
+        }
+    }
+
+    private String formatRange(int start, int end) {
+        if (start == end) return start + "시";
+        return start + "시부터 " + end + "시까지";
     }
 }

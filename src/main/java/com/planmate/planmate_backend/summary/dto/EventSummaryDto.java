@@ -4,16 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class EventSummaryDto {
-    private String title;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private boolean recurring;
-    private int occurrenceCount;
-    private String categoryName;
+    private int totalEventCount;
+    private List<CategoryCountDto> categoryCounts;
+    private List<EventDto> mainEvents;
+    private String message;
 }

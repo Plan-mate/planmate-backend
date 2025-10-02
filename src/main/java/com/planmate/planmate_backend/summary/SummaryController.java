@@ -1,25 +1,33 @@
 package com.planmate.planmate_backend.summary;
 
-import com.planmate.planmate_backend.summary.dto.SummaryReqDto;
-import com.planmate.planmate_backend.summary.dto.SummaryResDto;
-import com.planmate.planmate_backend.summary.service.SummaryService;
+import com.planmate.planmate_backend.summary.dto.LocationDataDto;
+import com.planmate.planmate_backend.summary.dto.EventSummaryDto;
+import com.planmate.planmate_backend.summary.dto.WeatherSummaryDto;
+import com.planmate.planmate_backend.summary.service.EventService;
+import com.planmate.planmate_backend.summary.service.WeatherService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/summary")
 @RequiredArgsConstructor
 public class SummaryController {
 
-    private final SummaryService summaryService;
+    private final EventService summaryService;
+    private final WeatherService weatherService;
 
-    @GetMapping("/today")
-    public SummaryResDto getTodaySummary(@AuthenticationPrincipal Long userId, @Valid SummaryReqDto dto) {
-        return summaryService.getTodaySummary(userId, dto);
+    @GetMapping("/today/weather")
+    public WeatherSummaryDto getTodayWeatherSummary(@Valid LocationDataDto dto) {
+        return weatherService.getWeatherSummary(dto.getNx(), dto.getNy(), dto.getLocationName());
+    }
+
+    @GetMapping("/today/event")
+    public EventSummaryDto getTodayEventSummary(@AuthenticationPrincipal Long userId) {
+        return summaryService.getTodayEventSummary(userId);
     }
 
     // 추천 API

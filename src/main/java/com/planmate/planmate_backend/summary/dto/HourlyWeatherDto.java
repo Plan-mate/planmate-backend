@@ -4,13 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class WeatherSummaryDto {
-    private String sky;
-    private String summary;
-    private List<HourlyWeatherDto> hourlyWeathers;
+public class HourlyWeatherDto {
+    private String time;
+    private String description;
+    private int temperature;
 }

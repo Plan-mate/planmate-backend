@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SummaryReqDto {
+public class LocationDataDto {
     private int nx;
     private int ny;
     private String locationName;

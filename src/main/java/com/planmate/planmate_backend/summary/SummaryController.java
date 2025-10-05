@@ -35,6 +35,6 @@ public class SummaryController {
 
     @GetMapping("/recommend")
     public List<EventReqDto> getTodayRecommend(@AuthenticationPrincipal Long userId, @Valid LocationDataDto dto) {
-        return recommendService.getTodayRecommend(userId, dto.getNx(), dto.getNy());
+        return recommendService.getTodayRecommend(userId, dto);
     }
 }

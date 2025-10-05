@@ -3,6 +3,7 @@ package com.planmate.planmate_backend.summary.service;
 import com.planmate.planmate_backend.event.dto.EventReqDto;
 import com.planmate.planmate_backend.event.dto.EventResDto;
 import com.planmate.planmate_backend.event.service.GetService;
+import com.planmate.planmate_backend.summary.dto.LocationDataDto;
 import com.planmate.planmate_backend.summary.dto.RecommendTemplate;
 import com.planmate.planmate_backend.summary.dto.WeatherBasicInfo;
 import com.planmate.planmate_backend.summary.loader.GlobalRecommendLoader;
@@ -30,11 +31,13 @@ public class RecommendService {
     private final GlobalStatAnalyzer globalStatAnalyzer;
     private final GetService getService;
 
-    public List<EventReqDto> getTodayRecommend(Long userId, int nx, int ny) {
+    public List<EventReqDto> getTodayRecommend(Long userId, LocationDataDto dto) {
+        LocalDate targetDate = dto.getTargetDate() != null ? dto.getTargetDate() : LocalDate.now();
+
         List<EventReqDto> out = new ArrayList<>(3);
-        addIfNotNull(out, getWeatherBasedRecommendation(nx, ny));
-        addIfNotNull(out, getPersonalBasedRecommendation(userId));
-        addIfNotNull(out, getGlobalBasedRecommendation());
+        addIfNotNull(out, getWeatherBasedRecommendation(dto.getNx(), dto.getNy(), targetDate));
+        addIfNotNull(out, getPersonalBasedRecommendation(userId, targetDate));
+        addIfNotNull(out, getGlobalBasedRecommendation(targetDate));
         return out;
     }
 
@@ -46,8 +49,9 @@ public class RecommendService {
         return ThreadLocalRandom.current().nextInt(size);
     }
 
-    private LocalDateTime topOfHourPlus(int hours) {
-        return LocalDateTime.now().plusHours(hours).withMinute(0).withSecond(0).withNano(0);
+    private LocalDateTime topOfHourPlus(LocalDate targetDate, int hours) {
+        LocalDateTime base = targetDate.atTime(LocalDateTime.now().getHour(), 0, 0); // 현재 시간으로 세팅, 분/초 0
+        return base.plusHours(hours).withMinute(0).withSecond(0).withNano(0);
     }
 
     private EventReqDto pickFromTemplates(List<RecommendTemplate> templates, LocalDateTime start) {
@@ -55,20 +59,19 @@ public class RecommendService {
         return templates.get(randIndex(templates.size())).toEventDto(start);
     }
 
-    private EventReqDto getWeatherBasedRecommendation(int nx, int ny) {
-        String baseDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+    private EventReqDto getWeatherBasedRecommendation(int nx, int ny, LocalDate targetDate) {
+        String baseDate = targetDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         WeatherBasicInfo weather = weatherService.fetchVilageWeatherData(nx, ny, baseDate);
         String key = WeatherKeyBuilder.build(weather);
         List<RecommendTemplate> templates = weatherLoader.getRecommendations(key);
-        return pickFromTemplates(templates, topOfHourPlus(1));
+        return pickFromTemplates(templates, topOfHourPlus(targetDate, 1));
     }
 
-    private EventReqDto getPersonalBasedRecommendation(Long userId) {
-        LocalDate today = LocalDate.now();
-        LocalDate startDate = today.minusDays(6);
-        List<EventResDto> recent = getService.getEvents(userId, startDate, today);
+    private EventReqDto getPersonalBasedRecommendation(Long userId, LocalDate targetDate) {
+        LocalDate startDate = targetDate.minusDays(6);
+        List<EventResDto> recent = getService.getEvents(userId, startDate, targetDate);
 
-        LocalDateTime start = topOfHourPlus(1);
+        LocalDateTime start = topOfHourPlus(targetDate, 1);
 
         if (recent.size() < 3) {
             return pickFromTemplates(personalLoader.getRecommendations("콜드스타트"), start);
@@ -84,13 +87,12 @@ public class RecommendService {
         return pickFromTemplates(personalLoader.getRecommendations(least), start);
     }
 
-    private EventReqDto getGlobalBasedRecommendation() {
-        LocalDateTime now = LocalDateTime.now();
+    private EventReqDto getGlobalBasedRecommendation(LocalDate targetDate) {
+        LocalDateTime now = targetDate.atStartOfDay().plusHours(LocalDateTime.now().getHour());
         int WINDOW_DAYS = 14;
 
         Optional<Long> hotCategoryOpt = globalStatAnalyzer.getHotCategory(now, WINDOW_DAYS);
-
-        LocalDateTime start = topOfHourPlus(3);
+        LocalDateTime start = topOfHourPlus(targetDate, 3);
 
         if (hotCategoryOpt.isEmpty()) {
             return pickFromTemplates(globalLoader.getRecommendations("콜드스타트"), start);

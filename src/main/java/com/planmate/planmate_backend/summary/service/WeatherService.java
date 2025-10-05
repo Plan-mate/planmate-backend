@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planmate.planmate_backend.common.config.AppProperties;
 import com.planmate.planmate_backend.summary.dto.HourlyWeatherDto;
 import com.planmate.planmate_backend.summary.dto.WeatherSummaryDto;
+import com.planmate.planmate_backend.summary.dto.WeatherBasicInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -23,9 +24,7 @@ public class WeatherService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private String getApiKey() {
-        return appProperties.getWeather().getApiKey();
-    }
+    private String getApiKey() { return appProperties.getWeather().getApiKey(); }
 
     private String getUltraBaseTime() {
         LocalDateTime now = LocalDateTime.now();
@@ -115,47 +114,8 @@ public class WeatherService {
         catch (Exception e) { return null; }
     }
 
-    public WeatherSummaryDto getWeatherSummary(int nx, int ny, String locationName) {
+    public WeatherBasicInfo fetchVilageWeatherData(int nx, int ny, String baseDate) {
         try {
-            LocalDateTime now = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
-            LocalDateTime start = now.plusHours(1);
-            List<LocalDateTime> timeline = new ArrayList<>();
-            for (int i = 0; i < 12; i++) timeline.add(start.plusHours(i));
-
-            LocalDate today = LocalDate.now();
-            String baseDate = today.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-
-            String ultraUrl = UriComponentsBuilder.newInstance()
-                    .scheme("https")
-                    .host("apihub.kma.go.kr")
-                    .path("/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtFcst")
-                    .queryParam("authKey", getApiKey())
-                    .queryParam("numOfRows", "200")
-                    .queryParam("pageNo", "1")
-                    .queryParam("dataType", "JSON")
-                    .queryParam("base_date", baseDate)
-                    .queryParam("base_time", getUltraBaseTime())
-                    .queryParam("nx", nx)
-                    .queryParam("ny", ny)
-                    .toUriString();
-
-            JsonNode ultraItems = objectMapper.readTree(restTemplate.getForObject(ultraUrl, String.class))
-                    .path("response").path("body").path("items").path("item");
-
-            Map<LocalDateTime, Map<String, String>> ultraMap = new HashMap<>();
-            ultraItems.forEach(item -> {
-                String cat = item.path("category").asText();
-                if (!List.of("PTY", "SKY", "T1H").contains(cat)) return;
-                String fcstDate = item.path("fcstDate").asText(); // yyyyMMdd
-                String fcstTime = item.path("fcstTime").asText(); // HHmm
-                int h = Integer.parseInt(fcstTime.substring(0, 2));
-                int m = Integer.parseInt(fcstTime.substring(2, 4));
-                LocalDate date = LocalDate.parse(fcstDate, DateTimeFormatter.BASIC_ISO_DATE);
-                LocalDateTime dt = date.atTime(h, m, 0, 0);
-                ultraMap.putIfAbsent(dt, new HashMap<>());
-                ultraMap.get(dt).put(cat, item.path("fcstValue").asText());
-            });
-
             String vilageUrl = UriComponentsBuilder.newInstance()
                     .scheme("https")
                     .host("apihub.kma.go.kr")
@@ -185,7 +145,7 @@ public class WeatherService {
                 switch (cat) {
                     case "TMX" -> { Integer v = toIntOrNull(val); if (v != null) tmx = (tmx == null) ? v : Math.max(tmx, v); }
                     case "TMN" -> { Integer v = toIntOrNull(val); if (v != null) tmn = (tmn == null) ? v : Math.min(tmn, v); }
-                    case "WCT" -> { wctOfficial = val; }
+                    case "WCT" -> wctOfficial = val;
                 }
 
                 if (List.of("TMP", "PTY", "SKY", "REH", "WSD").contains(cat)) {
@@ -194,7 +154,7 @@ public class WeatherService {
                     int h = Integer.parseInt(fcstTime.substring(0, 2));
                     int m = Integer.parseInt(fcstTime.substring(2, 4));
                     LocalDate date = LocalDate.parse(fcstDate, DateTimeFormatter.BASIC_ISO_DATE);
-                    LocalDateTime dt = date.atTime(h, m, 0, 0);
+                    LocalDateTime dt = date.atTime(h, m);
                     vilageMap.putIfAbsent(dt, new HashMap<>());
                     vilageMap.get(dt).put(cat, val);
 
@@ -204,15 +164,71 @@ public class WeatherService {
                 }
             }
 
+            return new WeatherBasicInfo(vilageMap, todaySky, tmx, tmn, wctOfficial);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new WeatherBasicInfo(Collections.emptyMap(), "알 수 없음", null, null, null);
+        }
+    }
+
+    public WeatherSummaryDto getWeatherSummary(int nx, int ny, String locationName) {
+        try {
+            LocalDate today = LocalDate.now();
+            String baseDate = today.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+
+            String ultraUrl = UriComponentsBuilder.newInstance()
+                    .scheme("https")
+                    .host("apihub.kma.go.kr")
+                    .path("/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtFcst")
+                    .queryParam("authKey", getApiKey())
+                    .queryParam("numOfRows", "200")
+                    .queryParam("pageNo", "1")
+                    .queryParam("dataType", "JSON")
+                    .queryParam("base_date", baseDate)
+                    .queryParam("base_time", getUltraBaseTime())
+                    .queryParam("nx", nx)
+                    .queryParam("ny", ny)
+                    .toUriString();
+
+            JsonNode ultraItems = objectMapper.readTree(restTemplate.getForObject(ultraUrl, String.class))
+                    .path("response").path("body").path("items").path("item");
+
+            Map<LocalDateTime, Map<String, String>> ultraMap = new HashMap<>();
+            ultraItems.forEach(item -> {
+                String cat = item.path("category").asText();
+                if (!List.of("PTY", "SKY", "T1H").contains(cat)) return;
+                String fcstDate = item.path("fcstDate").asText();
+                String fcstTime = item.path("fcstTime").asText();
+                int h = Integer.parseInt(fcstTime.substring(0, 2));
+                int m = Integer.parseInt(fcstTime.substring(2, 4));
+                LocalDate date = LocalDate.parse(fcstDate, DateTimeFormatter.BASIC_ISO_DATE);
+                LocalDateTime dt = date.atTime(h, m);
+                ultraMap.putIfAbsent(dt, new HashMap<>());
+                ultraMap.get(dt).put(cat, item.path("fcstValue").asText());
+            });
+
+            WeatherBasicInfo vilageInfo = fetchVilageWeatherData(nx, ny, baseDate);
+
+            Map<LocalDateTime, Map<String, String>> vilageMap = vilageInfo.getForecastMap();
+            String todaySky = vilageInfo.getTodaySky();
+            Integer tmx = vilageInfo.getTmx();
+            Integer tmn = vilageInfo.getTmn();
+            String wctOfficial = vilageInfo.getWct();
+
+            LocalDateTime now = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
+            LocalDateTime start = now.plusHours(1);
+            List<LocalDateTime> timeline = new ArrayList<>();
+            for (int i = 0; i < 12; i++) timeline.add(start.plusHours(i));
+
             List<HourlyWeatherDto> hourly = new ArrayList<>();
             boolean rainExpected = false;
-
             Double feelsLike = null;
+
             for (int i = 0; i < timeline.size(); i++) {
                 LocalDateTime slot = timeline.get(i);
 
                 Map<String, String> ultra = ultraMap.getOrDefault(slot, Collections.emptyMap());
-
                 LocalDateTime ref3h = floorTo3Hour(slot);
                 Map<String, String> v = vilageMap.getOrDefault(ref3h, Collections.emptyMap());
 

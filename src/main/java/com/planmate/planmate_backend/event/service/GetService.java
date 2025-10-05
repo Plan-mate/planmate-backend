@@ -245,4 +245,16 @@ public class GetService {
     private LocalDateTime min(LocalDateTime a, LocalDateTime b) {
         return a.isBefore(b) ? a : b;
     }
+
+    public Map<Long, Long> countCategoryBetween(LocalDateTime start, LocalDateTime end) {
+        List<Object[]> rows = eventRepository.countByCategoryCreatedBetween(start, end);
+
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            Long categoryId = (Long) row[0];
+            Long count = (Long) row[1];
+            map.put(categoryId, count);
+        }
+        return map;
+    }
 }

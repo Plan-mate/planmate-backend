@@ -1,16 +1,18 @@
 package com.planmate.planmate_backend.summary;
 
+import com.planmate.planmate_backend.event.dto.EventReqDto;
 import com.planmate.planmate_backend.summary.dto.LocationDataDto;
 import com.planmate.planmate_backend.summary.dto.EventSummaryDto;
 import com.planmate.planmate_backend.summary.dto.WeatherSummaryDto;
 import com.planmate.planmate_backend.summary.service.EventService;
+import com.planmate.planmate_backend.summary.service.RecommendService;
 import com.planmate.planmate_backend.summary.service.WeatherService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
+import java.util.List;
 
 @RestController
 @RequestMapping("/summary")
@@ -19,6 +21,7 @@ public class SummaryController {
 
     private final EventService summaryService;
     private final WeatherService weatherService;
+    private final RecommendService recommendService;
 
     @GetMapping("/today/weather")
     public WeatherSummaryDto getTodayWeatherSummary(@Valid LocationDataDto dto) {
@@ -30,9 +33,8 @@ public class SummaryController {
         return summaryService.getTodayEventSummary(userId);
     }
 
-    // 추천 API
     @GetMapping("/recommend")
-    public void getRecommendations(@AuthenticationPrincipal Long userId) {
-        System.out.println(userId);
+    public List<EventReqDto> getTodayRecommend(@AuthenticationPrincipal Long userId, @Valid LocationDataDto dto) {
+        return recommendService.getTodayRecommend(userId, dto.getNx(), dto.getNy());
     }
 }

@@ -56,4 +56,13 @@ public class RefreshTokenService {
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "토큰 해싱 실패");
         }
     }
+
+    @Transactional
+    public void clearRefreshToken(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "계정을 찾을 수 없습니다."));
+
+        user.setRefreshToken(null);
+        userRepository.save(user);
+    }
 }

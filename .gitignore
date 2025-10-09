@@ -37,3 +37,6 @@ out/
 .vscode/
 
 /src/main/resources/application.properties
+
+# .gitignore
+src/main/resources/firebase/serviceAccountKey.json

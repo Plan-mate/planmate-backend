@@ -13,5 +13,4 @@ import java.time.LocalDateTime;
 public class EventDelReqDto {
     private Scope scope;
     private LocalDateTime targetTime;
-
 }

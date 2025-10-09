@@ -35,7 +35,8 @@ public class User {
 
     private String salt;
 
-    private LocalDate birth;
+    @Column(name = "fcm_token")
+    private String fcmToken;
 
     @CreatedDate
     @Column(updatable = false, name = "created_at")

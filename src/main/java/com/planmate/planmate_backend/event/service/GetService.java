@@ -141,36 +141,53 @@ public class GetService {
             case DAILY -> {
                 LocalDateTime cur = alignDaily(seriesStart, periodStart, rule.getInterval());
                 while (!cur.isAfter(scanEnd)) {
-                    addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
+                    if (!cur.toLocalDate().isEqual(seriesStart.toLocalDate())) {
+                        addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
+                    }
                     cur = cur.plusDays(rule.getInterval());
                 }
             }
+
             case WEEKLY -> {
                 if (!dowList.isEmpty()) {
                     LocalDate firstWeek = startOfWeek(periodStart.toLocalDate());
-                    for (LocalDate weekStart = firstWeek; !weekStart.atStartOfDay().isAfter(scanEnd); weekStart = weekStart.plusWeeks(rule.getInterval())) {
+                    for (LocalDate weekStart = firstWeek;
+                         !weekStart.atStartOfDay().isAfter(scanEnd);
+                         weekStart = weekStart.plusWeeks(rule.getInterval())) {
+
                         for (DayOfWeek dow : dowList) {
-                            LocalDateTime cur = weekStart.atTime(seriesStart.toLocalTime()).with(TemporalAdjusters.nextOrSame(dow));
+                            LocalDateTime cur = weekStart.atTime(seriesStart.toLocalTime())
+                                    .with(TemporalAdjusters.next(dow));
+
+                            if (cur.isEqual(seriesStart)) continue;
                             if (cur.isBefore(seriesStart) || cur.isAfter(scanEnd)) continue;
+
                             addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
                         }
                     }
                 } else {
                     LocalDateTime cur = alignWeekly(seriesStart, periodStart, rule.getInterval());
                     while (!cur.isAfter(scanEnd)) {
-                        addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
+                        if (!cur.toLocalDate().isEqual(seriesStart.toLocalDate())) {
+                            addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
+                        }
                         cur = cur.plusWeeks(rule.getInterval());
                     }
                 }
             }
+
             case MONTHLY -> {
                 if (!domList.isEmpty()) {
                     LocalDate monthCursor = LocalDate.of(periodStart.getYear(), periodStart.getMonth(), 1);
                     while (!monthCursor.atStartOfDay().isAfter(scanEnd)) {
                         for (Integer dom : domList) {
                             if (dom < 1 || dom > monthCursor.lengthOfMonth()) continue;
+
                             LocalDateTime cur = monthCursor.withDayOfMonth(dom).atTime(seriesStart.toLocalTime());
+
+                            if (cur.toLocalDate().isEqual(seriesStart.toLocalDate())) continue;
                             if (cur.isBefore(seriesStart) || cur.isAfter(scanEnd)) continue;
+
                             addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
                         }
                         monthCursor = monthCursor.plusMonths(rule.getInterval());
@@ -178,16 +195,20 @@ public class GetService {
                 } else {
                     LocalDateTime cur = alignMonthly(seriesStart, periodStart, rule.getInterval());
                     while (!cur.isAfter(scanEnd)) {
-                        addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
+                        if (!cur.toLocalDate().isEqual(seriesStart.toLocalDate())) {
+                            addIfOverlap(out, cur, cur.plus(duration), periodStart, periodEnd, baseEvent);
+                        }
                         cur = cur.plusMonths(rule.getInterval());
                     }
                 }
             }
+
             default -> throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 반복 주기입니다.");
         }
 
         return out;
     }
+
 
     private void addIfOverlap(List<Event> out, LocalDateTime s, LocalDateTime e, LocalDateTime periodStart, LocalDateTime periodEnd, Event baseEvent) {
         if (e.isAfter(periodStart) && s.isBefore(periodEnd.plusSeconds(1))) {
@@ -256,5 +277,13 @@ public class GetService {
             map.put(categoryId, count);
         }
         return map;
+    }
+
+    public Optional<Event> getEventById(Long eventId) {
+        return eventRepository.findById(eventId);
+    }
+
+    public boolean isExceptionDate(Long eventId, LocalDate date) {
+        return recurrenceExceptionRepository.existsByEvent_IdAndExceptionDate(eventId, date);
     }
 }

@@ -6,9 +6,12 @@ import com.planmate.planmate_backend.event.dto.EventDelReqDto;
 import com.planmate.planmate_backend.event.entity.Event;
 import com.planmate.planmate_backend.event.entity.RecurrenceException;
 import com.planmate.planmate_backend.event.entity.RecurrenceRule;
+import com.planmate.planmate_backend.event.mapper.RecurrenceRuleMapper;
 import com.planmate.planmate_backend.event.repository.EventRepository;
 import com.planmate.planmate_backend.event.repository.RecurrenceExceptionRepository;
 import com.planmate.planmate_backend.event.repository.RecurrenceRuleRepository;
+import com.planmate.planmate_backend.notification.service.NotificationService;
+import com.planmate.planmate_backend.notification.service.RecurringService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,9 @@ public class DeleteService {
     private final EventRepository eventRepository;
     private final RecurrenceRuleRepository recurrenceRuleRepository;
     private final RecurrenceExceptionRepository recurrenceExceptionRepository;
+    private final NotificationService notificationService;
+    private final RecurringService recurringService;
+    private final RecurrenceRuleMapper recurrenceRuleMapper;
 
     @Transactional
     public void deleteEvent(Long userId, Long eventId, EventDelReqDto dto) {
@@ -46,6 +52,8 @@ public class DeleteService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "반복 일정은 SINGLE 삭제가 불가능합니다.");
         }
 
+        notificationService.cancelNotification(event.getId(), event.getUser().getId());
+
         List<RecurrenceException> exceptions = recurrenceExceptionRepository.findByOverrideEventId(event.getId());
         exceptions.forEach(ex -> ex.setOverrideEvent(null));
         recurrenceExceptionRepository.saveAll(exceptions);
@@ -54,6 +62,8 @@ public class DeleteService {
     }
 
     private void handleAllDelete(Event event) {
+        notificationService.cancelNotification(event.getId(), event.getUser().getId());
+
         List<Event> overrides = eventRepository.findByOriginalEventId(event.getId());
         overrides.forEach(override -> override.setOriginalEventId(null));
         eventRepository.saveAll(overrides);
@@ -64,7 +74,6 @@ public class DeleteService {
 
         recurrenceRuleRepository.deleteByEventId(event.getId());
         recurrenceExceptionRepository.deleteByEventId(event.getId());
-
         eventRepository.delete(event);
     }
 
@@ -74,7 +83,6 @@ public class DeleteService {
         }
 
         LocalDate instanceDate = targetTime.toLocalDate();
-
         RecurrenceException exception = RecurrenceException.builder()
                 .event(event)
                 .exceptionDate(instanceDate)
@@ -92,8 +100,13 @@ public class DeleteService {
 
         RecurrenceRule rule = recurrenceRuleRepository.findByEventId(event.getId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "반복 규칙을 찾지 못했습니다."));
+
         rule.setEndDate(instanceDate.atStartOfDay().minusSeconds(1));
         recurrenceRuleRepository.save(rule);
+
+        notificationService.cancelNotification(event.getId(), event.getUser().getId());
+
+        recurringService.registerRecurringNotification(event.getUser(), event, recurrenceRuleMapper.convertRuleToDto(rule));
 
         List<Event> overrides = eventRepository.findByOriginalEventId(event.getId());
         overrides.forEach(override -> override.setOriginalEventId(null));

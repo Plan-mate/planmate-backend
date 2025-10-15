@@ -1,20 +1,15 @@
 package com.planmate.planmate_backend.event.service;
 
 import com.planmate.planmate_backend.common.exception.BusinessException;
-import com.planmate.planmate_backend.event.dto.EventReqDto;
-import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
-import com.planmate.planmate_backend.event.dto.EventResDto;
-import com.planmate.planmate_backend.event.dto.EventUpdReqDto;
-import com.planmate.planmate_backend.event.entity.Event;
-import com.planmate.planmate_backend.event.entity.RecurrenceException;
-import com.planmate.planmate_backend.event.entity.RecurrenceRule;
+import com.planmate.planmate_backend.event.dto.*;
+import com.planmate.planmate_backend.event.entity.*;
 import com.planmate.planmate_backend.event.mapper.EventMapper;
 import com.planmate.planmate_backend.event.mapper.RecurrenceRuleMapper;
-import com.planmate.planmate_backend.event.repository.CategoryRepository;
-import com.planmate.planmate_backend.event.repository.EventRepository;
-import com.planmate.planmate_backend.event.repository.RecurrenceExceptionRepository;
-import com.planmate.planmate_backend.event.repository.RecurrenceRuleRepository;
+import com.planmate.planmate_backend.event.repository.*;
 import com.planmate.planmate_backend.common.enums.Scope;
+import com.planmate.planmate_backend.notification.service.NotificationService;
+import com.planmate.planmate_backend.user.entity.User;
+import com.planmate.planmate_backend.user.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -35,45 +30,55 @@ public class UpdateService {
     private final EventMapper eventMapper;
     private final RecurrenceRuleMapper recurrenceRuleMapper;
     private final GetService getService;
+    private final NotificationService notificationService;
+    private final ProfileService profileService;
 
     @Transactional
     public List<EventResDto> updateEvent(Long userId, Long eventId, EventUpdReqDto dto) {
+        User user = profileService.getUser(userId);
         Event originalEvent = eventRepository.findByIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "이벤트를 찾을 수 없습니다."));
 
+        notificationService.cancelNotification(eventId, userId);
+
         Event updated;
         Scope scope = dto.getScope();
+
         switch (scope) {
-            case SINGLE -> updated = handleSingleUpdate(originalEvent, dto.getEvent());
-            case ALL -> updated = handleAllUpdate(originalEvent, dto.getEvent());
-            case THIS -> updated = handleThisInstanceUpdate(originalEvent, dto.getEvent());
-            case THIS_AND_FUTURE -> updated = handleThisAndFutureUpdate(originalEvent, dto.getEvent());
+            case SINGLE -> updated = handleSingleUpdate(originalEvent, dto.getEvent(), user);
+            case ALL -> updated = handleAllUpdate(originalEvent, dto.getEvent(), user);
+            case THIS -> updated = handleThisInstanceUpdate(originalEvent, dto.getEvent(), user);
+            case THIS_AND_FUTURE -> updated = handleThisAndFutureUpdate(originalEvent, dto.getEvent(), user);
             default -> throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 스코프입니다.");
         }
 
         return buildResultList(updated, dto.getEvent().getRecurrenceRule());
     }
 
-    private Event handleSingleUpdate(Event event, EventReqDto dto) {
+    private Event handleSingleUpdate(Event event, EventReqDto dto, User user) {
         setCategoryIfPresent(event, dto);
         eventMapper.updateEventFromDto(event, dto);
         handleRecurrence(event, dto, Scope.SINGLE);
-        return eventRepository.save(event);
+
+        Event saved = eventRepository.save(event);
+        notificationService.createEventNotification(user, saved, dto.getRecurrenceRule());
+
+        return saved;
     }
 
-    private Event handleAllUpdate(Event event, EventReqDto dto) {
+    private Event handleAllUpdate(Event event, EventReqDto dto, User user) {
         recurrenceExceptionRepository.deleteByEventId(event.getId());
         setCategoryIfPresent(event, dto);
-
-        dto.setStartTime(null);
-        dto.setEndTime(null);
-
         eventMapper.updateEventFromDto(event, dto);
         handleRecurrence(event, dto, Scope.ALL);
-        return eventRepository.save(event);
+
+        Event saved = eventRepository.save(event);
+        notificationService.createEventNotification(user, saved, dto.getRecurrenceRule());
+
+        return saved;
     }
 
-    private Event handleThisInstanceUpdate(Event originalEvent, EventReqDto dto) {
+    private Event handleThisInstanceUpdate(Event originalEvent, EventReqDto dto, User user) {
         LocalDate instanceDate = dto.getStartTime().toLocalDate();
         Event override = eventMapper.createOverrideEvent(originalEvent, dto);
 
@@ -87,11 +92,12 @@ public class UpdateService {
                 .overrideEvent(savedOverride)
                 .build();
         recurrenceExceptionRepository.save(ex);
+        notificationService.createEventNotification(user, savedOverride, dto.getRecurrenceRule());
 
         return savedOverride;
     }
 
-    private Event handleThisAndFutureUpdate(Event originalEvent, EventReqDto dto) {
+    private Event handleThisAndFutureUpdate(Event originalEvent, EventReqDto dto, User user) {
         LocalDate instanceDate = dto.getStartTime().toLocalDate();
 
         RecurrenceRule oldRule = recurrenceRuleRepository.findByEventId(originalEvent.getId())
@@ -103,7 +109,10 @@ public class UpdateService {
         Event next = eventMapper.createOverrideEvent(originalEvent, dto);
         setCategoryIfPresent(next, dto);
 
-        return saveAndHandleRecurrence(next, dto, Scope.THIS_AND_FUTURE);
+        Event savedNext = saveAndHandleRecurrence(next, dto, Scope.THIS_AND_FUTURE);
+        notificationService.createEventNotification(user, savedNext, dto.getRecurrenceRule());
+
+        return savedNext;
     }
 
     private void setCategoryIfPresent(Event event, EventReqDto dto) {

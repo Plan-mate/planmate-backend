@@ -1,6 +1,7 @@
 package com.planmate.planmate_backend.notification.entity;
 
 import com.planmate.planmate_backend.common.enums.Status;
+import com.planmate.planmate_backend.event.entity.Event;
 import com.planmate.planmate_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,6 +29,9 @@ public class Notification {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(name = "event_id", nullable = false)
+    private Long eventId;
 
     @Column(nullable = false)
     private String title;

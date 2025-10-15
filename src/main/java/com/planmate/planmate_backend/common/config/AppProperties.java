@@ -13,6 +13,7 @@ public class AppProperties {
     private Jwt jwt = new Jwt();
     private Kakao kakao = new Kakao();
     private Weather weather = new Weather();
+    private Notification notification = new Notification();
 
     @Getter
     @Setter
@@ -34,6 +35,12 @@ public class AppProperties {
     @Setter
     public static class Weather {
         private String apiKey;
+    }
+
+    @Getter
+    @Setter
+    public static class Notification {
+        private String deepLink;
     }
 }
 

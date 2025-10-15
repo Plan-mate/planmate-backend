@@ -11,7 +11,8 @@ import org.quartz.JobExecutionContext;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -24,34 +25,43 @@ public class SendJob implements Job {
     @Override
     public void execute(JobExecutionContext context) {
         Long notificationId = context.getJobDetail().getJobDataMap().getLong("notificationId");
-        log.info("🔔 [SendJob] 실행 - notificationId: {}", notificationId);
 
-        Optional<Notification> optional = notificationRepository.findById(notificationId);
-        if (optional.isEmpty()) {
-            log.warn("❌ [SendJob] 알림을 찾을 수 없음 (id: {})", notificationId);
-            return;
-        }
+        notificationRepository.findByIdWithUser(notificationId)
+                .ifPresentOrElse(
+                        this::processNotification,
+                        () -> log.warn("알림(ID={})을(를) 찾을 수 없습니다.", notificationId)
+                );
+    }
 
-        Notification notification = optional.get();
-
-        // READY 상태만 발송
-        if (notification.getStatus() != Status.READY) {
-            return;
-        }
+    private void processNotification(Notification notification) {
+        if (notification.getStatus() != Status.READY) { return; }
 
         try {
-            // ✅ FCM 발송 (유저 ID → FCM 토큰으로 수정)
-            String targetToken = notification.getUser().getFcmToken();
-            fcmService.sendToToken(targetToken, notification.getTitle(), notification.getBody(), null);
+            String token = notification.getUser().getFcmToken();
+            if (token == null || token.isBlank()) {
+                markAsFailed(notification);
+                return;
+            }
 
-            // 상태 업데이트
-            notification.setStatus(Status.SENT);
-            notification.setSentAt(LocalDateTime.now());
-            notificationRepository.save(notification);
+            Map<String, String> data = new HashMap<>();
+            data.put("_link", notification.getDeepLink());
 
+            fcmService.sendToToken(token, notification.getTitle(), notification.getBody(), data);
+            markAsSent(notification);
         } catch (Exception e) {
-            notification.setStatus(Status.FAILED);
-            notificationRepository.save(notification);
+            log.error("알림(ID={}) 전송 중 오류 발생: {}", notification.getId(), e.getMessage(), e);
+            markAsFailed(notification);
         }
+    }
+
+    private void markAsSent(Notification notification) {
+        notification.setStatus(Status.SENT);
+        notification.setSentAt(LocalDateTime.now());
+        notificationRepository.save(notification);
+    }
+
+    private void markAsFailed(Notification notification) {
+        notification.setStatus(Status.FAILED);
+        notificationRepository.save(notification);
     }
 }

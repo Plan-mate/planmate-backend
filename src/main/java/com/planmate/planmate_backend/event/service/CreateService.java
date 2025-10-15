@@ -2,15 +2,16 @@ package com.planmate.planmate_backend.event.service;
 
 import com.planmate.planmate_backend.common.exception.BusinessException;
 import com.planmate.planmate_backend.event.dto.EventReqDto;
-import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
 import com.planmate.planmate_backend.event.dto.EventResDto;
-import com.planmate.planmate_backend.event.entity.RecurrenceRule;
-import com.planmate.planmate_backend.event.mapper.EventMapper;
-import com.planmate.planmate_backend.event.repository.EventRepository;
-import com.planmate.planmate_backend.event.repository.RecurrenceRuleRepository;
-import com.planmate.planmate_backend.event.repository.CategoryRepository;
+import com.planmate.planmate_backend.event.dto.RecurrenceRuleDto;
 import com.planmate.planmate_backend.event.entity.Category;
 import com.planmate.planmate_backend.event.entity.Event;
+import com.planmate.planmate_backend.event.entity.RecurrenceRule;
+import com.planmate.planmate_backend.event.mapper.EventMapper;
+import com.planmate.planmate_backend.event.repository.CategoryRepository;
+import com.planmate.planmate_backend.event.repository.EventRepository;
+import com.planmate.planmate_backend.event.repository.RecurrenceRuleRepository;
+import com.planmate.planmate_backend.notification.service.NotificationService;
 import com.planmate.planmate_backend.user.entity.User;
 import com.planmate.planmate_backend.user.service.ProfileService;
 import lombok.RequiredArgsConstructor;
@@ -31,11 +32,12 @@ public class CreateService {
     private final CategoryRepository categoryRepository;
     private final ProfileService profileService;
     private final EventMapper eventMapper;
-    private final GetService getService; // 반복 인스턴스 생성 로직 재사용
+    private final GetService getService;
+    private final NotificationService notificationService;
 
     @Transactional
     public List<EventResDto> createEvent(Long userId, EventReqDto dto) {
-
+        System.out.println("여긴 생성" + dto);
         User user = profileService.getUser(userId);
 
         Category category = categoryRepository.findById(Long.parseLong(dto.getCategoryId()))
@@ -70,8 +72,10 @@ public class CreateService {
             recurrenceRuleRepository.save(savedRule);
         }
 
-        List<EventResDto> result = new ArrayList<>();
+        // ✅ 알림 생성 및 Quartz 등록
+        notificationService.createEventNotification(user, event, dto.getRecurrenceRule());
 
+        List<EventResDto> result = new ArrayList<>();
         result.add(eventMapper.toDto(event, ruleDto));
 
         if (Boolean.TRUE.equals(dto.getIsRecurring()) && savedRule != null) {

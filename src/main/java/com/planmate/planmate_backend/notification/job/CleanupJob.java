@@ -21,7 +21,7 @@ public class CleanupJob implements Job {
     @Transactional
     public void execute(JobExecutionContext context) {
         LocalDateTime cutoff = LocalDateTime.now().minusWeeks(3);
-        int deleted = notificationRepository.deleteReadBefore(cutoff);
+        int deleted = notificationRepository.deleteOldNonReadyBefore(cutoff);
 
         log.info("🧹 [CleanupJob] {}개의 읽은 오래된 알림을 삭제 완료 ({} 이전 데이터)", deleted, cutoff);
     }

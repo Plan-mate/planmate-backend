@@ -15,8 +15,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     boolean existsByUserIdAndStatusAndReadFalse(Long userId, Status status);
 
     @Modifying
-    @Query("DELETE FROM Notification n WHERE n.createdAt < :cutoff AND n.read = true")
-    int deleteReadBefore(LocalDateTime cutoff);
+    @Query("DELETE FROM Notification n WHERE n.status <> 'READY' AND n.updatedAt < :cutoff")
+    int deleteOldNonReadyBefore(LocalDateTime cutoff);
 
     @Modifying
     @Query("UPDATE Notification n " +

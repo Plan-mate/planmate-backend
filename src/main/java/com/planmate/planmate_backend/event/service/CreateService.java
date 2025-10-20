@@ -37,7 +37,6 @@ public class CreateService {
 
     @Transactional
     public List<EventResDto> createEvent(Long userId, EventReqDto dto) {
-        System.out.println("여긴 생성" + dto);
         User user = profileService.getUser(userId);
 
         Category category = categoryRepository.findById(Long.parseLong(dto.getCategoryId()))

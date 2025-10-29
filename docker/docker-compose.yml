@@ -1,0 +1,38 @@
+version: "3.9"
+
+networks:
+  planmate-network:
+    external: true
+
+volumes:
+  mysql_data:
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: planmate-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: planmate
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - planmate-network
+
+  backend:
+    image: 357443655122.dkr.ecr.ap-northeast-2.amazonaws.com/planmate-backend:${IMAGE_TAG:-latest}
+    container_name: planmate-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      AWS_REGION: ap-northeast-2
+    depends_on:
+      - mysql
+    networks:
+      - planmate-network

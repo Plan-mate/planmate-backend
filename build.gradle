@@ -37,6 +37,10 @@ dependencies {
 
     implementation 'com.mysql:mysql-connector-j:8.4.0'
 
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager:3.4.0'
+
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
     testImplementation 'org.springframework.security:spring-security-test'

@@ -60,7 +60,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "🔹 Connecting to EC2..."
-            cd /home/ubuntu/planmate-backend/infra/scripts
+            cd /home/ubuntu/planmate-backend/infra
             chmod +x deploy.sh
             echo "🔹 Starting deployment..."
             sudo ./deploy.sh ${{ env.TAG }}

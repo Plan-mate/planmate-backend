@@ -18,13 +18,14 @@ else
 fi
 
 echo "🔹 Docker Compose Pull & Up"
-cd /home/ec2-user/planmate-backend/docker
+cd /home/ubuntu/planmate-backend/infra
 
 # 환경변수 IMAGE_TAG를 compose에 전달
-IMAGE_TAG=$IMAGE_TAG docker compose -f compose.yml pull
-IMAGE_TAG=$IMAGE_TAG docker compose -f compose.yml up -d --force-recreate
+echo "📦 이미지 Pull 및 컨테이너 실행 중... (TAG=$IMAGE_TAG)"
+IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.yml pull
+IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.yml up -d --force-recreate
 
-echo "🧹 오래된 이미지 정리"
+echo "🧹 오래된 이미지 정리 중..."
 docker image prune -f
 
 echo "✅ 배포 완료: $IMAGE_TAG"

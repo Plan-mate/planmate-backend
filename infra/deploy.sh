@@ -6,30 +6,31 @@ IMAGE_TAG=$1
 ECR_REPOSITORY="357443655122.dkr.ecr.ap-northeast-2.amazonaws.com/planmate-backend"
 NETWORK_NAME="planmate-network"
 
-cd "$(dirname "$0")"
-echo "🚀 배포 스크립트 시작"
-echo "📦 이미지 태그: $IMAGE_TAG"
-echo "📁 현재 경로: $(pwd)"
+echo "🔑 Retrieving DB_PASSWORD from AWS Secrets Manager..."
+DB_PASSWORD=$(aws secretsmanager get-secret-value \
+  --secret-id planmate-db-password \
+  --query SecretString \
+  --output text)
 
-echo "🔹 AWS ECR 로그인 중..."
-aws ecr get-login-password --region ap-northeast-2 \
-  | docker login --username AWS --password-stdin ${ECR_REPOSITORY%/*}
-
-echo "🔹 Docker 네트워크 확인 중..."
-if ! docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME" > /dev/null 2>&1; then
-  echo "🛠 네트워크가 없습니다. 새로 생성합니다: $NETWORK_NAME"
-  docker network create $NETWORK_NAME
-else
-  echo "✅ 기존 네트워크 사용 중: $NETWORK_NAME"
+if [ -z "$DB_PASSWORD" ]; then
+  echo "❌ Failed to fetch DB_PASSWORD from Secrets Manager!"
+  exit 1
 fi
 
-echo "🔹 Docker Compose Pull"
-IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.yml pull
+echo "✅ DB_PASSWORD loaded successfully."
 
-echo "🔹 Docker Compose Up (컨테이너 재생성)"
-IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.yml up -d --force-recreate
+# Docker 로그인 및 네트워크 설정 등 기존 로직 유지
+aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ECR_REPOSITORY%/*}
 
-echo "🧹 오래된 이미지 정리 중..."
-docker image prune -f || true
+if ! docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME" > /dev/null 2>&1; then
+  docker network create $NETWORK_NAME
+fi
 
-echo "✅ 배포 완료: $IMAGE_TAG"
+cd /home/ubuntu/planmate-backend/infra
+
+# ⚙️ Docker Compose 실행 시 환경변수로 주입
+IMAGE_TAG=$IMAGE_TAG DB_PASSWORD=$DB_PASSWORD docker compose -f docker-compose.yml pull
+IMAGE_TAG=$IMAGE_TAG DB_PASSWORD=$DB_PASSWORD docker compose -f docker-compose.yml up -d --force-recreate
+
+docker image prune -f
+echo "✅ Deployment completed successfully."

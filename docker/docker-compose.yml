@@ -6,6 +6,8 @@ networks:
 
 volumes:
   mysql_data:
+  certbot_conf:
+  certbot_www:
 
 services:
   mysql:
@@ -27,12 +29,44 @@ services:
     image: 357443655122.dkr.ecr.ap-northeast-2.amazonaws.com/planmate-backend:${IMAGE_TAG:-latest}
     container_name: planmate-backend
     restart: always
-    ports:
-      - "8080:8080"
+    depends_on:
+      - mysql
     environment:
       SPRING_PROFILES_ACTIVE: prod
       AWS_REGION: ap-northeast-2
-    depends_on:
-      - mysql
+    ports:
+      - "8080:8080"
     networks:
       - planmate-network
+
+  proxy:
+    image: nginx:alpine
+    container_name: planmate-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    networks:
+      - planmate-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: planmate-certbot
+    depends_on:
+      - proxy
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    command: >
+      certonly --webroot
+      --webroot-path=/var/www/certbot
+      --email dev.ktkdgh@gmail.com
+      --agree-tos
+      --no-eff-email
+      -d ec2-52-78-58-247.ap-northeast-2.compute.amazonaws.com

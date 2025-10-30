@@ -49,13 +49,13 @@ jobs:
           docker push $ECR_REPOSITORY:latest
           echo "✅ Docker image pushed successfully."
 
-      - name: 📤 Upload infra & docker to remote staging
+      - name: 📤 Upload deploy, nginx, and compose
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "infra/deploy.sh,docker/docker-compose.yml"
+          source: "infra/deploy.sh,infra/nginx.conf,docker/docker-compose.yml"
           target: "/home/ubuntu/.gha_upload/"
           overwrite: true
           rm: true
@@ -69,28 +69,22 @@ jobs:
           script: |
             set -euo pipefail
             mkdir -p /home/ubuntu/planmate-backend/infra
+            mkdir -p /home/ubuntu/planmate-backend/infra/certbot/conf
+            mkdir -p /home/ubuntu/planmate-backend/infra/certbot/www
 
-            echo "🔹 Place files exactly"
-            if [ -f /home/ubuntu/.gha_upload/infra/deploy.sh ]; then
-              install -m 755 /home/ubuntu/.gha_upload/infra/deploy.sh /home/ubuntu/planmate-backend/infra/deploy.sh
-            elif [ -f /home/ubuntu/.gha_upload/deploy.sh ]; then
-              install -m 755 /home/ubuntu/.gha_upload/deploy.sh /home/ubuntu/planmate-backend/infra/deploy.sh
-            else
-              echo "❌ deploy.sh not found in staging"; exit 1
-            fi
+            echo "🔹 Place deploy.sh"
+            install -m 755 /home/ubuntu/.gha_upload/infra/deploy.sh /home/ubuntu/planmate-backend/infra/deploy.sh
 
-            if [ -f /home/ubuntu/.gha_upload/docker/docker-compose.yml ]; then
-              install -m 644 /home/ubuntu/.gha_upload/docker/docker-compose.yml /home/ubuntu/planmate-backend/infra/docker-compose.yml
-            elif [ -f /home/ubuntu/.gha_upload/docker-compose.yml ]; then
-              install -m 644 /home/ubuntu/.gha_upload/docker-compose.yml /home/ubuntu/planmate-backend/infra/docker-compose.yml
-            else
-              echo "❌ docker-compose.yml not found in staging"; exit 1
-            fi
+            echo "🔹 Place nginx.conf"
+            install -m 644 /home/ubuntu/.gha_upload/infra/nginx.conf /home/ubuntu/planmate-backend/infra/nginx.conf
+
+            echo "🔹 Place docker-compose.yml"
+            install -m 644 /home/ubuntu/.gha_upload/docker/docker-compose.yml /home/ubuntu/planmate-backend/infra/docker-compose.yml
 
             echo "🧹 Clean staging"
             rm -rf /home/ubuntu/.gha_upload
 
-            echo "🔹 Run deploy script"
+            echo "🚀 Run deploy script"
             bash /home/ubuntu/planmate-backend/infra/deploy.sh ${{ env.TAG }}
 
             echo "✅ Deployment done"

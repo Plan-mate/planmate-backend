@@ -39,4 +39,9 @@ IMAGE_TAG=$IMAGE_TAG DB_PASSWORD=$DB_PASSWORD docker compose -f docker-compose.y
 IMAGE_TAG=$IMAGE_TAG DB_PASSWORD=$DB_PASSWORD docker compose -f docker-compose.yml up -d --force-recreate
 
 docker image prune -f
+
+echo "🔐 Certbot 인증서 갱신 중..."
+docker compose -f docker-compose.yml run --rm certbot renew || true
+docker compose -f docker-compose.yml restart proxy || true
+
 echo "✅ Deployment completed successfully with tag: $IMAGE_TAG"

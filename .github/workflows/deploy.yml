@@ -37,53 +37,60 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: 🏷️ Set Docker tag
-        id: vars
         run: echo "TAG=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
       - name: 🧱 Build and push Docker image
         env:
           ECR_REPOSITORY: ${{ steps.login-ecr.outputs.registry }}/planmate-backend
         run: |
-          echo "🔹 Building Docker image..."
           docker build -t $ECR_REPOSITORY:${{ env.TAG }} .
-          echo "🔹 Pushing image to ECR..."
           docker push $ECR_REPOSITORY:${{ env.TAG }}
           docker tag $ECR_REPOSITORY:${{ env.TAG }} $ECR_REPOSITORY:latest
           docker push $ECR_REPOSITORY:latest
           echo "✅ Docker image pushed successfully."
 
-      - name: 📤 Copy deploy.sh to EC2
+      - name: 📤 Upload infra & docker to remote staging
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "infra/deploy.sh"
-          target: "/home/ubuntu/planmate-backend/infra/deploy.sh"
-          strip_components: 1
+          source: "infra/deploy.sh,docker/docker-compose.yml"
+          target: "/home/ubuntu/.gha_upload/"
           overwrite: true
+          rm: true
 
-      - name: 📤 Copy docker-compose.yml to EC2
-        uses: appleboy/scp-action@v0.1.5
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker/docker-compose.yml"
-          target: "/home/ubuntu/planmate-backend/infra/docker-compose.yml"
-          strip_components: 1
-          overwrite: true
-
-      - name: 🚀 Deploy to EC2
+      - name: 🚀 Move files into place & deploy
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "🔹 Connecting to EC2..."
-            cd /home/ubuntu/planmate-backend/infra
-            chmod +x deploy.sh
-            echo "🔹 Starting deployment..."
-            ./deploy.sh ${{ env.TAG }}
-            echo "✅ Deployment completed successfully."
+            set -euo pipefail
+            mkdir -p /home/ubuntu/planmate-backend/infra
+
+            echo "🔹 Place files exactly"
+            if [ -f /home/ubuntu/.gha_upload/infra/deploy.sh ]; then
+              install -m 755 /home/ubuntu/.gha_upload/infra/deploy.sh /home/ubuntu/planmate-backend/infra/deploy.sh
+            elif [ -f /home/ubuntu/.gha_upload/deploy.sh ]; then
+              install -m 755 /home/ubuntu/.gha_upload/deploy.sh /home/ubuntu/planmate-backend/infra/deploy.sh
+            else
+              echo "❌ deploy.sh not found in staging"; exit 1
+            fi
+
+            if [ -f /home/ubuntu/.gha_upload/docker/docker-compose.yml ]; then
+              install -m 644 /home/ubuntu/.gha_upload/docker/docker-compose.yml /home/ubuntu/planmate-backend/infra/docker-compose.yml
+            elif [ -f /home/ubuntu/.gha_upload/docker-compose.yml ]; then
+              install -m 644 /home/ubuntu/.gha_upload/docker-compose.yml /home/ubuntu/planmate-backend/infra/docker-compose.yml
+            else
+              echo "❌ docker-compose.yml not found in staging"; exit 1
+            fi
+
+            echo "🧹 Clean staging"
+            rm -rf /home/ubuntu/.gha_upload
+
+            echo "🔹 Run deploy script"
+            bash /home/ubuntu/planmate-backend/infra/deploy.sh ${{ env.TAG }}
+
+            echo "✅ Deployment done"

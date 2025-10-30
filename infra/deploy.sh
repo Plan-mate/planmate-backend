@@ -7,7 +7,6 @@ ECR_REPOSITORY="357443655122.dkr.ecr.ap-northeast-2.amazonaws.com/planmate-backe
 NETWORK_NAME="planmate-network"
 
 cd "$(dirname "$0")"
-
 echo "🚀 배포 스크립트 시작"
 echo "📦 이미지 태그: $IMAGE_TAG"
 echo "📁 현재 경로: $(pwd)"

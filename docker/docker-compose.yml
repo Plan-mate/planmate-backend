@@ -34,8 +34,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       AWS_REGION: ap-northeast-2
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     networks:
       - planmate-network
 
@@ -69,4 +69,4 @@ services:
       --email dev.ktkdgh@gmail.com
       --agree-tos
       --no-eff-email
-      -d ec2-52-78-58-247.ap-northeast-2.compute.amazonaws.com
+      -d planmate-backend.shop  

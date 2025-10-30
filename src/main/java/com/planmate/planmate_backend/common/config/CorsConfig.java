@@ -18,8 +18,7 @@ public class CorsConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "https://planmate.shop",
-                "https://www.planmate.shop",
-                "https://planmate-frontend.vercel.app"
+                "https://www.planmate.shop"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH","DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

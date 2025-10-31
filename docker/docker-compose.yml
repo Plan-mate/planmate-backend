@@ -6,8 +6,6 @@ networks:
 
 volumes:
   mysql_data:
-  certbot_conf:
-  certbot_www:
 
 services:
   mysql:
@@ -47,26 +45,7 @@ services:
       - backend
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - /home/ubuntu/planmate-backend/infra/nginx.conf:/etc/nginx/nginx.conf
     networks:
       - planmate-network
-
-  certbot:
-    image: certbot/certbot
-    container_name: planmate-certbot
-    depends_on:
-      - proxy
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    command: >
-      certonly --webroot
-      --webroot-path=/var/www/certbot
-      --email dev.ktkdgh@gmail.com
-      --agree-tos
-      --no-eff-email
-      -d planmate-backend.shop  

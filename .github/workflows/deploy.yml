@@ -69,8 +69,6 @@ jobs:
           script: |
             set -euo pipefail
             mkdir -p /home/ubuntu/planmate-backend/infra
-            mkdir -p /home/ubuntu/planmate-backend/infra/certbot/conf
-            mkdir -p /home/ubuntu/planmate-backend/infra/certbot/www
 
             echo "🔹 Place deploy.sh"
             install -m 755 /home/ubuntu/.gha_upload/infra/deploy.sh /home/ubuntu/planmate-backend/infra/deploy.sh

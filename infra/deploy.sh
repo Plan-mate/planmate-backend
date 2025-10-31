@@ -27,7 +27,8 @@ fi
 
 echo "✅ DB_PASSWORD loaded successfully from Secrets Manager."
 
-aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ECR_REPOSITORY%/*}
+aws ecr get-login-password --region ap-northeast-2 \
+  | docker login --username AWS --password-stdin ${ECR_REPOSITORY%/*}
 
 if ! docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME" > /dev/null 2>&1; then
   docker network create $NETWORK_NAME
@@ -39,9 +40,5 @@ IMAGE_TAG=$IMAGE_TAG DB_PASSWORD=$DB_PASSWORD docker compose -f docker-compose.y
 IMAGE_TAG=$IMAGE_TAG DB_PASSWORD=$DB_PASSWORD docker compose -f docker-compose.yml up -d --force-recreate
 
 docker image prune -f
-
-echo "🔐 Certbot 인증서 갱신 중..."
-docker compose -f docker-compose.yml run --rm certbot renew || true
-docker compose -f docker-compose.yml restart proxy || true
 
 echo "✅ Deployment completed successfully with tag: $IMAGE_TAG"

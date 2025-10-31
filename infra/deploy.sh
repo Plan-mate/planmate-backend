@@ -25,8 +25,6 @@ if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" == "null" ]; then
   exit 1
 fi
 
-echo "✅ DB_PASSWORD loaded successfully from Secrets Manager."
-
 aws ecr get-login-password --region ap-northeast-2 \
   | docker login --username AWS --password-stdin ${ECR_REPOSITORY%/*}
 

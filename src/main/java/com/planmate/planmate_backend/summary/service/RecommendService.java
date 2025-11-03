@@ -38,6 +38,7 @@ public class RecommendService {
         addIfNotNull(out, getWeatherBasedRecommendation(dto.getNx(), dto.getNy(), targetDate));
         addIfNotNull(out, getPersonalBasedRecommendation(userId, targetDate));
         addIfNotNull(out, getGlobalBasedRecommendation(targetDate));
+        System.out.println(out);
         return out;
     }
 

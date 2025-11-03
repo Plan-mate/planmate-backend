@@ -33,13 +33,11 @@ public class RecommendService {
 
     public List<EventReqDto> getTodayRecommend(Long userId, LocationDataDto dto) {
         LocalDate targetDate = dto.getTargetDate() != null ? dto.getTargetDate() : LocalDate.now();
-        System.out.println(targetDate);
 
         List<EventReqDto> out = new ArrayList<>(3);
         addIfNotNull(out, getWeatherBasedRecommendation(dto.getNx(), dto.getNy(), targetDate));
         addIfNotNull(out, getPersonalBasedRecommendation(userId, targetDate));
         addIfNotNull(out, getGlobalBasedRecommendation(targetDate));
-        System.out.println(out);
         return out;
     }
 
@@ -53,8 +51,6 @@ public class RecommendService {
 
     private LocalDateTime topOfHourPlus(LocalDate targetDate, int hours) {
         LocalDateTime base = targetDate.atTime(LocalDateTime.now().getHour(), 0, 0);
-        System.out.println(base);
-        System.out.println(hours);
         return base.plusHours(hours).withMinute(0).withSecond(0).withNano(0);
     }
 
